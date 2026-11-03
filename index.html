@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="sr">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#101522"><title>Šta kaže Srbija?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;600;700;800&family=Manrope:wght@700;800&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#101522;--panel:#1c2638;--text:#f5f7fb;--muted:#a5b0c3;--line:#ffffff20;--gold:#ffbf47;--orange:#ff9148;font-family:"DM Sans",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% 0,#293752,transparent 45%),var(--bg);color:var(--text);min-height:100vh}
+.wrap{max-width:720px;margin:auto;padding:22px 16px 42px}header{display:flex;justify-content:space-between;align-items:center;margin-bottom:34px}
+.brand{display:flex;gap:10px;align-items:center}.logo{width:42px;height:42px;border-radius:14px;background:linear-gradient(135deg,var(--gold),var(--orange));display:grid;place-items:center;color:#151a25;font-weight:900}
+.name{font:800 16px Manrope}.tag{font-size:11px;color:var(--muted)}.date{font-size:11px;color:var(--muted);border:1px solid var(--line);padding:8px 11px;border-radius:20px}
+.eyebrow{color:var(--gold);font-size:11px;letter-spacing:1.5px;font-weight:800;text-transform:uppercase;margin-bottom:10px}
+h1{font:800 clamp(32px,8vw,48px)/1.05 Manrope;letter-spacing:-1.5px;margin:0}.intro{color:var(--muted);line-height:1.55;font-size:15px;margin:12px 0 24px}
+.card{background:linear-gradient(150deg,#222e44,#192334);border:1px solid var(--line);border-radius:24px;padding:clamp(18px,4vw,28px);box-shadow:0 20px 60px #0004}
+.meta{display:flex;gap:8px;margin-bottom:17px;flex-wrap:wrap}.pill{font-size:11px;padding:7px 10px;border-radius:20px;background:#ffffff10;border:1px solid var(--line);color:#dbe3f1}.hot{color:var(--gold);background:#ffbf4718;border-color:#ffbf4740}
+h2{font:800 clamp(22px,5.5vw,32px)/1.2 Manrope;letter-spacing:-.7px;margin:0 0 10px}.sub{color:var(--muted);font-size:14px;line-height:1.5;margin:0 0 22px}
+.options{display:grid;gap:10px}.option{display:flex;align-items:center;gap:12px;text-align:left;padding:14px;border-radius:15px;border:1px solid var(--line);background:#ffffff08;color:var(--text);font-weight:700;min-height:58px}.option.selected{border-color:var(--gold);background:#ffbf4718}.option:disabled{opacity:.9}
+.letter{width:29px;height:29px;flex:0 0 29px;border-radius:9px;background:#ffffff12;color:var(--gold);display:grid;place-items:center;font-weight:800}
+.option.selected .letter{background:var(--gold);color:#171c27}
+.vote{width:100%;border:0;border-radius:14px;margin-top:15px;padding:15px;background:linear-gradient(100deg,var(--gold),var(--orange));color:#171b25;font-weight:800}.vote:disabled{opacity:.4}
+.hint{text-align:center;color:var(--muted);font-size:11px;margin:12px 0 0}
+.results{display:none;border-top:1px solid var(--line);margin-top:22px;padding-top:19px}.results.show{display:block}.rhead{display:flex;justify-content:space-between;gap:10px;margin-bottom:15px}.rhead strong{font:800 18px Manrope}.muted{font-size:11px;color:var(--muted)}
+.row{margin:13px 0}.label{display:flex;justify-content:space-between;gap:10px;font-size:13px;margin-bottom:7px}.pct{color:var(--gold);font-weight:800}.track{height:9px;border-radius:10px;background:#ffffff14;overflow:hidden}.fill{height:100%;background:linear-gradient(90deg,var(--gold),var(--orange));border-radius:10px}
+.share{width:100%;padding:14px;border:0;border-radius:14px;background:#f5f7fb;color:#171c27;font-weight:800;margin-top:8px}
+.archive{margin-top:28px}.archive h3{font:800 18px Manrope;margin:0 0 12px}.archive-list{display:grid;gap:9px}.archive-item{background:#ffffff08;border:1px solid var(--line);border-radius:14px;padding:14px;color:var(--text);text-align:left;display:flex;justify-content:space-between;gap:12px}.archive-item b{font-size:13px;line-height:1.4}.archive-item span{font-size:11px;color:var(--muted);white-space:nowrap}
+footer{text-align:center;color:#8591a6;font-size:11px;line-height:1.6;margin-top:28px}.toast{position:fixed;bottom:20px;left:50%;transform:translate(-50%,20px);opacity:0;background:white;color:#151a25;padding:11px 16px;border-radius:30px;font-weight:700;font-size:12px;transition:.2s}.toast.show{opacity:1;transform:translate(-50%,0)}
+@media(min-width:600px){.options{grid-template-columns:1fr 1fr}}@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head>
+<body><main class="wrap">
+<header><div class="brand"><div class="logo">Š?</div><div><div class="name">Šta kaže Srbija?</div><div class="tag">Izaberi stranu. Uporedi se.</div></div></div><div class="date" id="date"></div></header>
+<div class="eyebrow">Dnevna dilema</div><h1>Da vidimo<br>šta kaže Srbija.</h1><p class="intro">Jedno pitanje. Tvoj izbor. Pa da vidimo koliko ljudi misli isto kao ti.</p>
+<section class="card" id="game"><p class="muted">Učitavam…</p></section>
+<section class="archive"><h3>Još dilema</h3><div class="archive-list" id="archive"></div></section>
+<footer>Rezultati predstavljaju glasove korisnika ove igre, a ne reprezentativno istraživanje javnog mnjenja.<br>U demo režimu glasovi se čuvaju samo na ovom uređaju.<br>© <span id="year"></span> Šta kaže Srbija?</footer></main><div class="toast" id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="./config.js"></script>
+<script>
+(()=> {
+const demo=[
+{id:"d1",slug:"pozajmica",title:"Prijatelj ti treći put kasni sa vraćanjem pozajmljenog novca. Sada traži još 500 €. Šta radiš?",subtitle:"Budi iskren — nema pogrešnog odgovora.",category:"Prijateljstvo",date:"Danas",options:["Pozajmim. Prijatelji smo.","Ne pozajmljujem više.","Pozajmim, ali uz jasan rok.","Prvo vraća staro, pa pričamo."],counts:[12,48,17,23]},
+{id:"d2",slug:"petak",title:"Petak je, 17:05. Šef šalje poruku: „Imaš samo jednu sitnicu da završiš.” Šta pomisliš?",subtitle:"Ovo pitanje je opasno blizu realnosti.",category:"Posao",date:"Juče",options:["Gotovo je za pet minuta.","Vidimo se u ponedeljak.","Isključim internet.","Odgovorim: „Naravno 😊” i uzdahnem."],counts:[8,31,19,42]},
+{id:"d3",slug:"pica",title:"Ostao je poslednji komad pice. U sobi ste ti i još jedna osoba. Šta je najispravnije?",subtitle:"Karakter se vidi u sitnicama. Ili u pici.",category:"Svakodnevica",date:"Ranije",options:["Pitam da li neko želi.","Prepolovim.","Pojedem. Ko prvi, njegovo.","Ostavim ga za sutra."],counts:[37,28,24,11]}
+];
+const cfg=window.APP_CONFIG||{},ready=!!(window.supabase&&cfg.SUPABASE_URL&&cfg.SUPABASE_ANON_KEY&&!cfg.SUPABASE_URL.includes("YOUR_")&&!cfg.SUPABASE_ANON_KEY.includes("YOUR_"));
+const db=ready?window.supabase.createClient(cfg.SUPABASE_URL,cfg.SUPABASE_ANON_KEY):null;
+let qs=[],current=null,selected=null;
+const $=id=>document.getElementById(id), esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function toast(s){$("toast").textContent=s;$("toast").classList.add("show");setTimeout(()=>$("toast").classList.remove("show"),2200)}
+function voter(){let v=localStorage.getItem("ss-voter");if(!v){v=crypto.randomUUID();localStorage.setItem("ss-voter",v)}return v}
+$("date").textContent=new Intl.DateTimeFormat("sr-RS",{day:"numeric",month:"short"}).format(new Date());$("year").textContent=new Date().getFullYear();
+async function load(){
+ if(ready){try{let {data,error}=await db.from("questions").select("id,slug,title,subtitle,category,question_date,options(id,label,position)").eq("status","published").order("question_date",{ascending:false}).limit(10);if(error)throw error;qs=(data||[]).map(q=>({...q,options:q.options.sort((a,b)=>a.position-b.position),date:q.question_date}));if(qs.length){draw(qs[0]);return}}catch(e){console.warn(e)}}
+ qs=demo;draw(qs[0]);toast("Demo režim — poveži bazu za zajedničko glasanje.");
+}
+function draw(q){
+ current=q;selected=null;const saved=localStorage.getItem("ss-voted-"+q.id);
+ $("game").innerHTML=`<div class="meta"><span class="pill hot">${esc(q.category)}</span><span class="pill">${esc(q.date||"Danas")}</span>${!ready?'<span class="pill">DEMO</span>':''}</div>
+ <h2>${esc(q.title)}</h2><p class="sub">${esc(q.subtitle||"Izaberi odgovor i pogledaj rezultate.")}</p>
+ <div class="options">${q.options.map((o,i)=>`<button class="option ${saved===String(o.id||o.label)?"selected":""}" data-i="${i}" ${saved?"disabled":""}><span class="letter">${"ABCD"[i]}</span>${esc(o.label)}</button>`).join("")}</div>
+ <button class="vote" id="vote" ${saved?"disabled":""}>${saved?"Već si glasao/la":"Glasaj"}</button><p class="hint">${saved?"Hvala na glasu!":"Ne tražimo ime, telefon ili e-mail. Rezultat vidiš odmah."}</p><div class="results ${saved?"show":""}" id="results"></div>`;
+ document.querySelectorAll(".option").forEach(b=>b.onclick=()=>{selected=+b.dataset.i;document.querySelectorAll(".option").forEach(x=>x.classList.toggle("selected",x===b));$("vote").disabled=false});
+ $("vote").onclick=vote;if(saved)results(q,saved);archive();
+}
+async function vote(){
+ if(selected===null)return;$("vote").disabled=true;$("vote").textContent="Beležim glas…";
+ if(ready){try{let {data,error}=await db.rpc("vote_question",{p_question_id:current.id,p_option_id:current.options[selected].id,p_voter_key:voter()});if(error||!data?.ok)throw error||new Error("Vote rejected")}catch(e){$("vote").disabled=false;$("vote").textContent="Pokušaj ponovo";toast("Glas nije prihvaćen. Proveri bazu.");return}}
+ else{let key="ss-count-"+current.id,c=JSON.parse(localStorage.getItem(key)||"null")||current.counts.slice();c[selected]++;localStorage.setItem(key,JSON.stringify(c))}
+ const choice=ready?current.options[selected].id:current.options[selected].label;localStorage.setItem("ss-voted-"+current.id,choice);draw(current);toast("Glas je zabeležen. Hvala!");
+}
+async function results(q,saved){
+ let rows=[],total=0;
+ if(ready){try{let {data,error}=await db.rpc("get_question_results",{p_question_id:q.id});if(error)throw error;rows=data||[]}catch(e){console.warn(e)}}
+ if(!rows.length){let c=JSON.parse(localStorage.getItem("ss-count-"+q.id)||"null")||q.counts||q.options.map(()=>0);total=c.reduce((a,b)=>a+b,0);rows=q.options.map((o,i)=>({label:o.label,votes:c[i],percentage:Math.round(c[i]*100/Math.max(total,1))}))}
+ else total=rows.reduce((a,r)=>a+Number(r.votes),0);
+ $("results").innerHTML=`<div class="rhead"><strong>Kako su glasali igrači?</strong><span class="muted">${ready?total+" glasova":"Demo prikaz"}</span></div>${rows.map(r=>`<div class="row"><div class="label"><b>${esc(r.label)}</b><span class="pct">${Math.round(Number(r.percentage)||0)}%</span></div><div class="track"><div class="fill" style="width:${Math.min(100,Number(r.percentage)||0)}%"></div></div></div>`).join("")}<p class="muted">${ready?"Glasovi korisnika igre; nisu reprezentativno istraživanje.":"Ilustrativni demo rezultati. Tvoj glas se čuva samo na ovom uređaju."}</p><button class="share" id="share">Podeli pitanje sa prijateljima ↗</button>`;
+ $("results").classList.add("show");$("share").onclick=()=>share(q);
+}
+async function share(q){let u=new URL(location.href);u.searchParams.set("q",q.slug);let text=`Kako bi ti odgovorio/la? ${q.title}`;try{if(navigator.share)await navigator.share({title:"Šta kaže Srbija?",text,url:u.href});else{await navigator.clipboard.writeText(text+" "+u.href);toast("Link je kopiran.")}}catch(e){}}
+function archive(){$("archive").innerHTML=qs.filter(q=>q.id!==current.id).map(q=>`<button class="archive-item" data-id="${q.id}"><b>${esc(q.title)}</b><span>${esc(q.category)} →</span></button>`).join("");document.querySelectorAll(".archive-item").forEach(b=>b.onclick=()=>draw(qs.find(q=>q.id===b.dataset.id)))}
+load();
+})();
+</script></body></html>
