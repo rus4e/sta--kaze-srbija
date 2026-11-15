@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react"
 import type { AdminScreen } from "../types"
 import { AdminIcon } from "./AdminIcon"
+import { useAdminSignOut } from "../AdminAccessGate"
 
 interface AdminNavItem {
   id: AdminScreen
@@ -30,6 +31,7 @@ export function AdminShell({
   children: ReactNode
 }) {
   const [open, setOpen] = useState(false)
+  const signOut = useAdminSignOut()
   const changeScreen = (next: AdminScreen) => {
     setScreen(next)
     setOpen(false)
@@ -62,15 +64,18 @@ export function AdminShell({
           ))}
         </nav>
         <div className="admin-sidebar-note">
-          <span>FAZA 2 · DEMO</span>
+          <span>FAZA 2 · VLASNIČKI PRISTUP</span>
           <p>
-            Bez AI, baze i autentifikacije. Nijedna akcija ne objavljuje
+            Sadržaj je demonstracioni. Nijedna akcija još ne objavljuje
             sadržaj.
           </p>
         </div>
         <a className="admin-back" href="./">
           <span>←</span> Nazad na javnu aplikaciju
         </a>
+        <button className="admin-logout" type="button" onClick={() => void signOut?.()}>
+          Odjavi se
+        </button>
       </aside>
       {open && (
         <button
@@ -90,8 +95,8 @@ export function AdminShell({
         <div className="admin-warning">
           <AdminIcon name="warning" size={17} />
           <p>
-            <strong>Demonstracioni interfejs.</strong> Ruta nije autentifikovana
-            i nije povezana sa Supabase bazom ili AI servisom.
+            <strong>Privatna redakcija.</strong> Pristup je ograničen na
+            vlasnički nalog; sadržaj je i dalje demonstracioni.
           </p>
         </div>
         <main className="admin-main">{children}</main>

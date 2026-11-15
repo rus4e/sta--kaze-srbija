@@ -42,9 +42,9 @@ export function getSupabaseClient(): SupabaseClient {
   if (!client) {
     client = createClient(projectUrl.origin, anonKey, {
       auth: {
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        persistSession: true,
       },
     })
   }

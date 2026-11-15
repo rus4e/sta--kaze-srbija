@@ -1,4 +1,5 @@
 import App from "./App"
+import { AdminAccessGate } from "./admin/AdminAccessGate"
 import { AdminApp } from "./admin/AdminApp"
 
 export default function Root() {
@@ -6,5 +7,11 @@ export default function Root() {
     .replace(/\/+$/, "")
     .endsWith("/redakcija")
 
-  return isEditorialRoute ? <AdminApp /> : <App />
+  return isEditorialRoute ? (
+    <AdminAccessGate>
+      <AdminApp />
+    </AdminAccessGate>
+  ) : (
+    <App />
+  )
 }
