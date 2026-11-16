@@ -21,7 +21,7 @@ export function DashboardScreen({
   const count = (status: string) =>
     questions.filter((question) => question.status === status).length
   const stats = [
-    ["Pripremljeno ove nedelje", questions.length, "35 planirano"],
+    ["Nacrti u planu", questions.length, "Sačuvano u bazi"],
     ["Čeka potvrdu", count("Čeka proveru"), "Ručna odluka"],
     ["Odobreno", count("Odobreno"), "Spremno za plan"],
     ["Zakazano", count("Zakazano"), "Europe/Belgrade"],
@@ -35,7 +35,7 @@ export function DashboardScreen({
         eyebrow="NEDELJA U REDAKCIJI"
         title="Kontrolna tabla"
         description="Pregled pripreme, uredničkih odluka i spremnosti paketa."
-        action={<DemoBadge>DEMONSTRACIONI PODACI</DemoBadge>}
+        action={<DemoBadge>STVARNI NACRTI</DemoBadge>}
       />
       <section className="admin-stat-grid">
         {stats.map(([label, value, note], index) => (
@@ -50,7 +50,7 @@ export function DashboardScreen({
         <div className="admin-section-title">
           <div>
             <span>STATUS PRIPREME</span>
-            <h2>Narednih sedam dana</h2>
+            <h2>Pregled paketa</h2>
           </div>
           <button onClick={onOpenWeekly}>
             Otvori plan <AdminIcon name="arrow" size={15} />
@@ -59,7 +59,7 @@ export function DashboardScreen({
         <div className="readiness-row">
           {packages.map((pack) => {
             const ready = pack.questions.filter((question) =>
-              ["Odobreno", "Zakazano"].includes(question.status),
+              ["Odobreno", "Zakazano"].includes(question.status) && (question.type === "Tekstualno" || question.assetReady),
             ).length
             return (
               <button key={pack.id} onClick={onOpenWeekly}>
@@ -101,7 +101,7 @@ export function DashboardScreen({
                 <span className="package-date">{pack.date}</span>
                 <div>
                   <strong>{pack.day}</strong>
-                  <small>5 pitanja · 3 + 1 + 1</small>
+                  <small>5 pitanja · dnevni paket</small>
                 </div>
                 <StatusBadge
                   status={

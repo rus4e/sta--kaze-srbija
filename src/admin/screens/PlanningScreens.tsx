@@ -14,8 +14,8 @@ export function WeeklyPlanScreen({ packages }: { packages: DemoPackage[] }) {
       <AdminPageHeader
         eyebrow="35 PITANJA · 7 DANA"
         title="Nedeljni plan"
-        description="Svaki paket sadrži tri tekstualna, jedno ilustrovano i jedno vizuelno pitanje."
-        action={<DemoBadge>DEMO PLAN</DemoBadge>}
+        description="Nedeljni nacrti, sačuvani po danu i pripremljeni za uredničku objavu."
+        action={<DemoBadge>SAČUVANO U REDAKCIJI</DemoBadge>}
       />
       <div className="weekly-rule">
         <div>
@@ -42,10 +42,7 @@ export function WeeklyPlanScreen({ packages }: { packages: DemoPackage[] }) {
               .length,
             visual: pack.questions.filter((q) => q.type === "Vizuelno").length,
           }
-          const valid =
-            typeCounts.text === 3 &&
-            typeCounts.illustrated === 1 &&
-            typeCounts.visual === 1
+          const valid = pack.questions.length === 5
           return (
             <article
               className={`weekly-package ${isOpen ? "is-open" : ""}`}
@@ -62,7 +59,7 @@ export function WeeklyPlanScreen({ packages }: { packages: DemoPackage[] }) {
                 </div>
                 <div className={`validation-chip ${valid ? "valid" : ""}`}>
                   <AdminIcon name={valid ? "check" : "warning"} size={13} />
-                  {valid ? "Struktura ispravna" : "Proveri paket"}
+                  {valid ? "5 pitanja u paketu" : "Nedostaje pitanje"}
                 </div>
                 <AdminIcon name="arrow" size={17} />
               </button>
@@ -108,8 +105,8 @@ export function CalendarScreen({ packages }: { packages: DemoPackage[] }) {
       <AdminPageHeader
         eyebrow="UREĐIVAČKI RASPORED"
         title="Kalendar objavljivanja"
-        description="Sedmodnevni pregled sa podrazumevanim vremenom objave u 08:00."
-        action={<DemoBadge>NE OBJAVLJUJE STVARNO</DemoBadge>}
+        description="Termini su sačuvani u nacrtima; javna objava se uključuje ručno."
+        action={<DemoBadge>RUČNA OBJAVA</DemoBadge>}
       />
       <div className="timezone-note">
         <AdminIcon name="calendar" />
@@ -120,9 +117,7 @@ export function CalendarScreen({ packages }: { packages: DemoPackage[] }) {
       </div>
       <section className="calendar-grid">
         {packages.map((pack) => {
-          const approved = pack.questions.filter((q) =>
-            ["Odobreno", "Zakazano"].includes(q.status),
-          ).length
+          const approved = pack.questions.filter((q) => ["Odobreno", "Zakazano"].includes(q.status) && (q.type === "Tekstualno" || q.assetReady)).length
           const ready = approved === 5
           return (
             <article key={pack.id} className={ready ? "ready" : ""}>
@@ -147,8 +142,8 @@ export function CalendarScreen({ packages }: { packages: DemoPackage[] }) {
                   zakazivanje.
                 </p>
               )}
-              <button disabled={!ready}>
-                {ready ? "Promeni termin" : "Zakazivanje blokirano"}
+              <button disabled>
+                {ready ? "Objavi pitanja pojedinačno iz pregleda" : "Zakazivanje blokirano"}
               </button>
             </article>
           )
@@ -169,43 +164,115 @@ export function CalendarScreen({ packages }: { packages: DemoPackage[] }) {
 export function ReviewScreen({
   questions,
   updateQuestion,
+  saveQuestion,
   setStatus,
+  publishQuestion,
 }: {
   questions: DemoQuestion[]
   updateQuestion: (question: DemoQuestion) => void
-  setStatus: (id: string, status: "Odobreno" | "Odbijeno") => void
+  saveQuestion: (question: DemoQuestion) => Promise<void>
+  setStatus: (id: string, status: "Odobreno" | "Odbijeno") => Promise<void>
+  publishQuestion: (id: string) => Promise<"Zakazano" | "Objavljeno">
 }) {
-  const reviewable = questions.filter((q) =>
-    ["Čeka proveru", "Predlog AI", "Odobreno", "Odbijeno"].includes(q.status),
+  const reviewable = questions.filter((question) =>
+    ["Čeka proveru", "Predlog AI", "Odobreno", "Odbijeno"].includes(question.status),
   )
   const [selectedId, setSelectedId] = useState(reviewable[0]?.id)
-  const selected =
-    questions.find((question) => question.id === selectedId) ?? reviewable[0]
-  if (!selected) return null
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState("")
+  const [messageIsError, setMessageIsError] = useState(false)
+  const selected = reviewable.find((question) => question.id === selectedId) ?? reviewable[0]
+
+  const runStatusChange = async (status: "Odobreno" | "Odbijeno") => {
+    if (!selected || busy) return
+    setBusy(true)
+    setMessage("")
+    try {
+      await saveQuestion(selected)
+      await setStatus(selected.id, status)
+      setMessage(status === "Odobreno" ? "Pitanje je odobreno i sačuvano kao nacrt." : "Pitanje je odbijeno i ostaje privatni nacrt.")
+      setMessageIsError(false)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Izmena nije sačuvana.")
+      setMessageIsError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const runSave = async () => {
+    if (!selected || busy) return
+    setBusy(true)
+    setMessage("")
+    try {
+      await saveQuestion(selected)
+      setMessage("Izmene su sačuvane. Pitanje ostaje nacrt.")
+      setMessageIsError(false)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Izmena nije sačuvana.")
+      setMessageIsError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const runPublish = async () => {
+    if (!selected || busy || selected.status !== "Odobreno" || !selected.assetReady) return
+    const dateLabel = new Intl.DateTimeFormat("sr-Latn-RS", {
+      dateStyle: "long",
+      timeZone: "Europe/Belgrade",
+    }).format(new Date(selected.publishDate + "T12:00:00Z"))
+    const confirmed = window.confirm(
+      "Potvrdi objavu pitanja " + (selected.code ?? "") + ". Biće javno dostupno " + dateLabel + " u 08:00 po vremenu Beograda. Status pitanja će preći iz nacrta u objavljeno/zakazano.",
+    )
+    if (!confirmed) return
+    setBusy(true)
+    setMessage("")
+    try {
+      await saveQuestion(selected)
+      const status = await publishQuestion(selected.id)
+      setMessage(status === "Zakazano" ? "Objava je aktivirana za izabrani termin." : "Pitanje je sada javno objavljeno.")
+      setMessageIsError(false)
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Objava nije uspela.")
+      setMessageIsError(true)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (!selected) {
+    return (
+      <>
+        <AdminPageHeader
+          eyebrow="RUČNA KONTROLA"
+          title="Urednički pregled"
+          description="Nema pitanja koja čekaju uredničku odluku."
+          action={<DemoBadge>SVE JE SAČUVANO</DemoBadge>}
+        />
+        <div className="admin-panel">Sva pitanja su odobrena, odbijena ili zakazana.</div>
+      </>
+    )
+  }
 
   return (
     <>
       <AdminPageHeader
         eyebrow="RUČNA KONTROLA"
         title="Urednički pregled"
-        description="AI predlaže. Urednik menja, odobrava ili odbija svako pitanje."
-        action={<DemoBadge>LOKALNA DEMO IZMENA</DemoBadge>}
+        description="Odobrena pitanja ostaju nacrti dok izričito ne aktiviraš objavu."
+        action={<DemoBadge>SAČUVANO U REDAKCIJI</DemoBadge>}
       />
       <div className="review-layout">
         <aside className="review-queue">
-          <div>
-            <span>RED ZA PROVERU</span>
-            <strong>{reviewable.length}</strong>
-          </div>
+          <div><span>RED ZA PROVERU</span><strong>{reviewable.length}</strong></div>
           {reviewable.map((question) => (
             <button
               className={selected.id === question.id ? "active" : ""}
               key={question.id}
-              onClick={() => setSelectedId(question.id)}
+              onClick={() => { setSelectedId(question.id); setMessage("") }}
             >
-              <span>
-                {question.category} · {question.type}
-              </span>
+              <span>{question.code} · {question.category} · {question.type}</span>
               <p>{question.text}</p>
               <StatusBadge status={question.status} />
             </button>
@@ -213,135 +280,67 @@ export function ReviewScreen({
         </aside>
         <section className="question-editor">
           <header>
-            <div>
-              <span>UREĐIVANJE PITANJA</span>
-              <h2>{selected.id}</h2>
-            </div>
+            <div><span>UREĐIVANJE PITANJA</span><h2>{selected.code ?? selected.id}</h2></div>
             <StatusBadge status={selected.status} />
           </header>
           <label>
             Tekst pitanja
-            <textarea
-              value={selected.text}
-              onChange={(event) =>
-                updateQuestion({ ...selected, text: event.target.value })
-              }
-            />
+            <textarea value={selected.text} disabled={busy} onChange={(event) => updateQuestion({ ...selected, text: event.target.value })} />
           </label>
           <div className="editor-row">
             <label>
               Kategorija
-              <select
-                value={selected.category}
-                onChange={(event) =>
-                  updateQuestion({ ...selected, category: event.target.value })
-                }
-              >
-                {[
-                  "Društvo",
-                  "Život",
-                  "Posao",
-                  "Kultura",
-                  "Porodica",
-                  "Navike",
-                  "Sport",
-                ].map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
+              <select value={selected.category} disabled={busy} onChange={(event) => updateQuestion({ ...selected, category: event.target.value })}>
+                {["Društvo", "Život", "Posao", "Kultura", "Porodica", "Navike", "Sport"].map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
             <label>
               Tip
-              <select
-                value={selected.type}
-                onChange={(event) =>
-                  updateQuestion({
-                    ...selected,
-                    type: event.target.value as DemoQuestion["type"],
-                  })
-                }
-              >
-                {["Tekstualno", "Ilustrovano", "Vizuelno"].map((item) => (
-                  <option key={item}>{item}</option>
-                ))}
+              <select value={selected.type} disabled={busy} onChange={(event) => updateQuestion({ ...selected, type: event.target.value as DemoQuestion["type"] })}>
+                {["Tekstualno", "Ilustrovano", "Vizuelno"].map((item) => <option key={item}>{item}</option>)}
               </select>
             </label>
             <label>
               Datum
-              <input
-                type="date"
-                value={selected.publishDate}
-                onChange={(event) =>
-                  updateQuestion({
-                    ...selected,
-                    publishDate: event.target.value,
-                  })
-                }
-              />
+              <input type="date" value={selected.publishDate} disabled={busy} onChange={(event) => updateQuestion({ ...selected, publishDate: event.target.value })} />
             </label>
           </div>
           <fieldset>
             <legend>Ponuđeni odgovori</legend>
             {selected.answers.map((answer, index) => (
-              <label className="answer-edit" key={`${selected.id}-${index}`}>
+              <label className="answer-edit" key={selected.optionIds?.[index] ?? selected.id + "-" + index}>
                 <span>{String.fromCharCode(65 + index)}</span>
-                <input
-                  value={answer}
-                  onChange={(event) =>
-                    updateQuestion({
-                      ...selected,
-                      answers: selected.answers.map((item, i) =>
-                        i === index ? event.target.value : item,
-                      ),
-                    })
-                  }
-                />
+                <input value={answer} disabled={busy} onChange={(event) => updateQuestion({ ...selected, answers: selected.answers.map((item, i) => i === index ? event.target.value : item) })} />
               </label>
             ))}
           </fieldset>
           <label>
-            Zašto je pitanje zanimljivo
-            <textarea
-              className="small"
-              value={selected.rationale}
-              onChange={(event) =>
-                updateQuestion({ ...selected, rationale: event.target.value })
-              }
-            />
+            Beleška ili smernica za vizuelni materijal
+            <textarea className="small" value={selected.rationale} disabled={busy} onChange={(event) => updateQuestion({ ...selected, rationale: event.target.value })} />
           </label>
+          {selected.type !== "Tekstualno" && (
+            <div className="admin-alert">
+              <AdminIcon name="image" size={16} />
+              <p>{selected.assetReady ? "Vizuelni materijal je povezan." : "Slika još nije pripremljena. Pitanje ne može biti javno objavljeno dok se ne poveže vizuelni materijal."}</p>
+            </div>
+          )}
           <div className="editor-checks">
-            {[
-              "Jasna formulacija",
-              "Odgovori su različiti",
-              "Nije sugestivno",
-              "Primereno širokoj publici",
-            ].map((item) => (
-              <span key={item}>
-                <AdminIcon name="check" size={13} />
-                {item}
-              </span>
+            {["Jasna formulacija", "Odgovori su različiti", "Nije sugestivno", "Primereno širokoj publici"].map((item) => (
+              <span key={item}><AdminIcon name="check" size={13} />{item}</span>
             ))}
           </div>
           <div className="editor-actions">
-            <button
-              className="reject"
-              onClick={() => setStatus(selected.id, "Odbijeno")}
-            >
-              Odbij pitanje
-            </button>
-            <button disabled title="AI servis nije povezan">
-              <AdminIcon name="spark" size={15} /> Regeneriši (planirano)
-            </button>
-            <button
-              className="approve"
-              onClick={() => setStatus(selected.id, "Odobreno")}
-            >
-              <AdminIcon name="check" size={15} /> Ručno odobri
+            <button type="button" disabled={busy} onClick={() => void runSave()}>Sačuvaj izmene</button>
+            <button className="reject" type="button" disabled={busy} onClick={() => void runStatusChange("Odbijeno")}>Odbij pitanje</button>
+            <button disabled title="AI servis nije povezan"><AdminIcon name="spark" size={15} /> Regeneriši (planirano)</button>
+            <button className="approve" type="button" disabled={busy} onClick={() => void runStatusChange("Odobreno")}><AdminIcon name="check" size={15} /> Ručno odobri</button>
+            <button className="approve" type="button" disabled={busy || selected.status !== "Odobreno" || !selected.assetReady} title={!selected.assetReady ? "Najpre pripremi i poveži vizuelni materijal." : "Aktiviraj javnu objavu ili zakazani termin."} onClick={() => void runPublish()}>
+              <AdminIcon name="check" size={15} /> Objavi / zakaži
             </button>
           </div>
+          {message && <p className={messageIsError ? "editor-disclaimer is-error" : "editor-disclaimer"} role={messageIsError ? "alert" : "status"}>{message}</p>}
           <p className="editor-disclaimer">
-            Sve izmene postoje samo u memoriji browsera. Nema upisa u bazu niti
-            objavljivanja.
+            Pitanje se objavljuje tek posle tvoje potvrde. Termin 08:00 je upisan u nacrt; vizuelna pitanja čekaju sliku.
           </p>
         </section>
       </div>

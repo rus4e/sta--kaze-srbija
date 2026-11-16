@@ -66,8 +66,7 @@ export function AdminShell({
         <div className="admin-sidebar-note">
           <span>FAZA 2 · VLASNIČKI PRISTUP</span>
           <p>
-            Sadržaj je demonstracioni. Nijedna akcija još ne objavljuje
-            sadržaj.
+            Nacrti se čuvaju u Supabase-u. Ništa se ne objavljuje automatski.
           </p>
         </div>
         <a className="admin-back" href="./">
@@ -96,7 +95,7 @@ export function AdminShell({
           <AdminIcon name="warning" size={17} />
           <p>
             <strong>Privatna redakcija.</strong> Pristup je ograničen na
-            vlasnički nalog; sadržaj je i dalje demonstracioni.
+            vlasnički nalog; nacrti se čuvaju u bazi i ne objavljuju se automatski.
           </p>
         </div>
         <main className="admin-main">{children}</main>

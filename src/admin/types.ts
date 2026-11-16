@@ -5,9 +5,12 @@ export type EditorialStatus = "Predlog AI" | "Čeka proveru" | "Odobreno" | "Zak
 
 export type DemoQuestion = {
   id: string
+  code?: string
   dayIndex: number
   text: string
   answers: string[]
+  optionIds?: string[]
+  assetReady?: boolean
   category: string
   type: QuestionType
   publishDate: string
@@ -15,7 +18,6 @@ export type DemoQuestion = {
   source?: string
   status: EditorialStatus
 }
-
 export type DemoPackage = {
   id: string
   dayIndex: number
@@ -24,7 +26,6 @@ export type DemoPackage = {
   publishTime: string
   questions: DemoQuestion[]
 }
-
 export type DemoActivity = {
   id: string
   time: string
