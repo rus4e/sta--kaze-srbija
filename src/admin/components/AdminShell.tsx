@@ -42,7 +42,7 @@ export function AdminShell({
     <div className="admin-app">
       <aside className={`admin-sidebar ${open ? "is-open" : ""}`}>
         <div className="admin-brand">
-          <img src="/sta-kaze-srbija-logo.png" alt="Šta kaže Srbija?" />
+          <img src={`${import.meta.env.BASE_URL}sta-kaze-srbija-logo.png`} alt="Šta kaže Srbija?" />
           <div>
             <strong>AI Redakcija</strong>
             <span>Urednički centar</span>
@@ -89,7 +89,7 @@ export function AdminShell({
           <button onClick={() => setOpen(true)} aria-label="Otvori meni">
             <AdminIcon name="menu" />
           </button>
-          <img src="/sta-kaze-srbija-logo.png" alt="Šta kaže Srbija?" />
+          <img src={`${import.meta.env.BASE_URL}sta-kaze-srbija-logo.png`} alt="Šta kaže Srbija?" />
           <strong>AI Redakcija</strong>
         </div>
         <div className="admin-warning">
