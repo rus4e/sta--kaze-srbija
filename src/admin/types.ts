@@ -11,6 +11,7 @@ export type DemoQuestion = {
   answers: string[]
   optionIds?: string[]
   assetReady?: boolean
+  imagePath?: string
   category: string
   type: QuestionType
   publishDate: string

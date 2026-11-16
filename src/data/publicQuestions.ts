@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../lib/supabase"
+import { getQuestionVisualAssetPath } from "./questionVisualAssets"
 
 type QuestionRow = {
   id: string
@@ -40,6 +41,7 @@ export type PublicQuestion = {
   questionDate: string | null
   publishAt: string | null
   expiresAt: string | null
+  imagePath?: string
   options: PublicOption[]
 }
 
@@ -139,6 +141,7 @@ export async function getPublishedQuestions(): Promise<PublicQuestion[]> {
     questionDate: question.question_date,
     publishAt: question.publish_at,
     expiresAt: question.expires_at,
+    imagePath: getQuestionVisualAssetPath(question.slug),
     options: optionsByQuestion.get(question.id) ?? [],
   }))
 }

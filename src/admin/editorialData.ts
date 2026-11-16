@@ -1,4 +1,5 @@
 import { getSupabaseClient } from "../lib/supabase"
+import { getQuestionVisualAssetPath } from "../data/questionVisualAssets"
 import type { DemoPackage, DemoQuestion, EditorialStatus, QuestionType } from "./types"
 
 type QuestionRow = {
@@ -139,6 +140,7 @@ export async function loadEditorialPackages(): Promise<DemoPackage[]> {
       answers: options.map((option) => option.label),
       optionIds: options.map((option) => option.id),
       assetReady: editorial.asset_ready,
+      imagePath: getQuestionVisualAssetPath(row.slug),
       category: row.category,
       type: editorial.question_type,
       publishDate: row.question_date,

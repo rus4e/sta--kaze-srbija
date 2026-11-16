@@ -280,6 +280,11 @@ function DailyQuestion({
       </div>
       <h2>{question.title}</h2>
       {question.subtitle && <p className="question-subtitle">{question.subtitle}</p>}
+      {question.imagePath && (
+        <figure className="question-visual">
+          <img src={question.imagePath} alt={"Vizuelni prikaz za pitanje: " + question.title} loading="lazy" />
+        </figure>
+      )}
       <p className="question-meta">
         <Icon name="users" size={16} /> {votes.toLocaleString("sr-RS")} glasova
       </p>
@@ -698,6 +703,11 @@ function ExploreScreen({
                 <h3>{item.title}</h3>
                 {item.subtitle && (
                   <p className="question-subtitle">{item.subtitle}</p>
+                )}
+                {isOpen && item.imagePath && (
+                  <figure className="question-visual question-visual--inline">
+                    <img src={item.imagePath} alt={"Vizuelni prikaz za pitanje: " + item.title} loading="lazy" />
+                  </figure>
                 )}
                 {isOpen ? (
                   <div className="inline-poll">

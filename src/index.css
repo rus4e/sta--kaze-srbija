@@ -311,3 +311,21 @@
 @media (prefers-reduced-motion: reduce) {
   *, *:before, *:after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
+
+.question-visual {
+  margin: 12px 0 16px;
+  padding: 6px;
+  border: 1px solid rgba(112, 30, 45, .12);
+  border-radius: 16px;
+  background: #f7f1e7;
+}
+.question-visual img {
+  display: block;
+  width: 100%;
+  max-height: min(76vw, 360px);
+  object-fit: contain;
+  border-radius: 11px;
+}
+.question-visual--inline {
+  margin: 0 0 12px;
+}

@@ -287,6 +287,12 @@ export function ReviewScreen({
             Tekst pitanja
             <textarea value={selected.text} disabled={busy} onChange={(event) => updateQuestion({ ...selected, text: event.target.value })} />
           </label>
+          {selected.imagePath && (
+            <figure className="question-asset-preview">
+              <img src={selected.imagePath} alt={"Vizuelni prikaz za pitanje " + (selected.code ?? "")} />
+              <figcaption>Pripremljen vizual za ovo pitanje</figcaption>
+            </figure>
+          )}
           <div className="editor-row">
             <label>
               Kategorija
