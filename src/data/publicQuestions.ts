@@ -87,6 +87,7 @@ export async function getPublishedQuestions(): Promise<PublicQuestion[]> {
     .or(`expires_at.is.null,expires_at.gt.${now}`)
     .order("question_date", { ascending: false })
     .order("publish_at", { ascending: false, nullsFirst: false })
+    .order("slug", { ascending: true })
 
   if (questionError) {
     throw new PublicDataError(

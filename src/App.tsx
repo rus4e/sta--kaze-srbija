@@ -1,6 +1,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type ReactNode,
@@ -18,6 +19,7 @@ import {
   getStoredVoteChoices,
   storeVoteChoice,
 } from "./lib/anonymousVoter"
+import { ScriptToggle } from "./lib/serbianScript"
 
 type Tab = "home" | "explore" | "saved" | "profile"
 type IconName = "home" | "compass" | "bookmark" | "user" | "bell" | "check" | "share" | "users" | "clock" | "arrow" | "close" | "copy" | "instagram" | "message" | "trend" | "settings" | "chevron" | "spark" | "search"
@@ -203,14 +205,17 @@ function Header({
         <OfficialLogo compact />
         {title && <h1 className="screen-title">{title}</h1>}
       </div>
-      <button
-        className="icon-button notification"
-        aria-label={settings ? "Podešavanja" : "Obaveštenja"}
-        onClick={onAction}
-      >
-        <Icon name={settings ? "settings" : "bell"} size={21} />
-        {!settings && <i />}
-      </button>
+      <div className="header-actions">
+        <ScriptToggle />
+        <button
+          className="icon-button notification"
+          aria-label={settings ? "Podešavanja" : "Obaveštenja"}
+          onClick={onAction}
+        >
+          <Icon name={settings ? "settings" : "bell"} size={21} />
+          {!settings && <i />}
+        </button>
+      </div>
     </header>
   )
 }
@@ -513,14 +518,14 @@ function HomeScreen({
         <div className="welcome-row">
           <div>
             <span>{today}</span>
-            <h1>Dobro jutro, Mila.</h1>
+            <h1>Dobro došli na portal.</h1>
           </div>
           <div className="streak">
-            <strong>7</strong>
+            <strong>{questions.length}</strong>
             <span>
-              dana
+              aktivnih
               <br />
-              zaredom
+              pitanja
             </span>
           </div>
         </div>
@@ -944,19 +949,13 @@ function ProfileScreen({
         onAction={() => setPanel(panel === "settings" ? null : "settings")}
       />
       <main className="screen-content profile-content">
-        <section className="profile-hero">
+        <section className="profile-hero profile-hero--guest">
           <div className="avatar">
-            <span>MP</span>
-            <i>
-              <Icon name="check" size={12} />
-            </i>
+            <Icon name="user" size={24} />
           </div>
-          <h2>Mila Petrović</h2>
-          <p>@milagovori · Beograd</p>
-          <div className="level-chip">
-            <Icon name="spark" size={13} /> GLAS RAZUMA · NIVO 4
-          </div>
-          <div className="stats">
+          <h2>Moj profil</h2>
+          <p>Anonimno glasanje · ovaj uređaj</p>
+          <div className="stats profile-stats--two">
             <div>
               <strong>{voteHistory.length}</strong>
               <span>glasova</span>
@@ -965,24 +964,23 @@ function ProfileScreen({
               <strong>{savedCount}</strong>
               <span>sačuvano</span>
             </div>
-            <div>
-              <strong>—</strong>
-              <span>niz dana</span>
-            </div>
           </div>
         </section>
         <section className="voice-card">
           <div className="voice-head">
             <div>
-              <span>TVOJ GLAS</span>
-              <h3>Lokalna aktivnost</h3>
+              <span>PRIJAVA KORISNIKA</span>
+              <h3>Pristupi svom nalogu</h3>
             </div>
-            <strong>{voteHistory.length}</strong>
+            <Icon name="user" size={20} />
           </div>
           <p>
-            Ovde se prikazuju samo glasovi potvrđeni u ovom pregledaču. Profil
-            još nije povezan sa bazom.
+            Prijava je putem sigurnog email linka, bez lozinke. U ovoj verziji
+            glasovi i sačuvana pitanja ostaju sačuvani samo u ovom pregledaču.
           </p>
+          <a className="profile-auth-link" href={import.meta.env.BASE_URL + "prijava"}>
+            Prijavi se emailom <Icon name="arrow" size={17} />
+          </a>
         </section>
         <section className="profile-section">
           <div className="section-heading compact">
@@ -1066,6 +1064,10 @@ function ProfileScreen({
             </label>
           </div>
         )}
+        <div className="profile-access-links">
+          <a href={import.meta.env.BASE_URL + "redakcija"}>Ulaz u redakciju</a>
+          <small>Pristup je ograničen na vlasnički nalog.</small>
+        </div>
       </main>
     </>
   )
@@ -1238,6 +1240,7 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [reload, setReload] = useState(0)
+  const hasLoadedRef = useRef(false)
   const [votePending, setVotePending] = useState<string | null>(null)
   const [voteErrors, setVoteErrors] = useState<Record<string, string>>({})
   const dailyQuestion = useMemo(() => questions[0], [questions])
@@ -1246,7 +1249,7 @@ export default function App() {
     let cancelled = false
 
     async function loadPublicData() {
-      setLoading(true)
+      if (!hasLoadedRef.current) setLoading(true)
       setLoadError(null)
       try {
         const publishedQuestions = await getPublishedQuestions()
@@ -1257,11 +1260,12 @@ export default function App() {
           ] as const),
         )
         if (!cancelled) {
+          hasLoadedRef.current = true
           setQuestions(publishedQuestions)
           setResultsByQuestion(Object.fromEntries(resultEntries))
         }
       } catch (error) {
-        if (!cancelled) {
+        if (!cancelled && !hasLoadedRef.current) {
           setQuestions([])
           setResultsByQuestion({})
           setLoadError(
@@ -1271,7 +1275,10 @@ export default function App() {
           )
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) {
+          hasLoadedRef.current = true
+          setLoading(false)
+        }
       }
     }
 
@@ -1280,6 +1287,22 @@ export default function App() {
       cancelled = true
     }
   }, [reload])
+
+  useEffect(() => {
+    const refreshPublishedQuestions = () => {
+      if (document.visibilityState === "visible") {
+        setReload((current) => current + 1)
+      }
+    }
+    const refreshTimer = window.setInterval(refreshPublishedQuestions, 60_000)
+    window.addEventListener("focus", refreshPublishedQuestions)
+    document.addEventListener("visibilitychange", refreshPublishedQuestions)
+    return () => {
+      window.clearInterval(refreshTimer)
+      window.removeEventListener("focus", refreshPublishedQuestions)
+      document.removeEventListener("visibilitychange", refreshPublishedQuestions)
+    }
+  }, [])
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -1365,7 +1388,11 @@ export default function App() {
             voteErrors={voteErrors}
             loading={loading}
             loadError={loadError}
-            onRetry={() => setReload((current) => current + 1)}
+            onRetry={() => {
+              hasLoadedRef.current = false
+              setLoading(true)
+              setReload((current) => current + 1)
+            }}
             onVote={(questionId, optionId) =>
               void handleVote(questionId, optionId)
             }
@@ -1387,7 +1414,11 @@ export default function App() {
             onVote={(questionId, optionId) =>
               void handleVote(questionId, optionId)
             }
-            onRetry={() => setReload((current) => current + 1)}
+            onRetry={() => {
+              hasLoadedRef.current = false
+              setLoading(true)
+              setReload((current) => current + 1)
+            }}
           />
         )}
         {tab === "saved" && (
