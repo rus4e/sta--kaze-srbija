@@ -74,7 +74,7 @@ function asSafeCount(value: number | string): number {
   return Number.isSafeInteger(count) && count >= 0 ? count : 0
 }
 
-export async function getPublishedQuestions(): Promise<PublicQuestion[]> {
+export async function getAvailableQuestions(): Promise<PublicQuestion[]> {
   const supabase = getSupabaseClient()
   const now = new Date().toISOString()
   const { data: questionData, error: questionError } = await supabase
@@ -82,7 +82,7 @@ export async function getPublishedQuestions(): Promise<PublicQuestion[]> {
     .select(
       "id, slug, title, subtitle, category, question_date, publish_at, expires_at",
     )
-    .eq("status", "published")
+    .in("status", ["published", "archived"])
     .or(`publish_at.is.null,publish_at.lte.${now}`)
     .or(`expires_at.is.null,expires_at.gt.${now}`)
     .order("question_date", { ascending: false })
@@ -91,7 +91,7 @@ export async function getPublishedQuestions(): Promise<PublicQuestion[]> {
 
   if (questionError) {
     throw new PublicDataError(
-      `Objavljena pitanja nisu mogla da se učitaju: ${questionError.message}`,
+      `Dostupna pitanja nisu mogla da se učitaju: ${questionError.message}`,
     )
   }
 

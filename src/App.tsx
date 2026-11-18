@@ -7,7 +7,7 @@ import {
   type ReactNode,
 } from "react"
 import {
-  getPublishedQuestions,
+  getAvailableQuestions,
   getQuestionResults,
   submitQuestionVote,
   type PublicQuestion,
@@ -180,6 +180,12 @@ function categoryMark(category: string): string {
   return marks[category] ?? category.slice(0, 1).toLocaleUpperCase("sr-Latn-RS")
 }
 
+function formatPortalDate(dateKey: string): string {
+  return new Intl.DateTimeFormat("sr-Latn-RS", {
+    weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+  }).format(new Date(`${dateKey}T12:00:00Z`))
+}
+
 function belgradeDateKey(): string {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/Belgrade",
@@ -297,6 +303,7 @@ function DataState({
 function DailyQuestion({
   question,
   questionNumber,
+  isToday,
   results,
   selectedAnswer,
   votePending,
@@ -306,6 +313,7 @@ function DailyQuestion({
 }: {
   question: PublicQuestion
   questionNumber: number
+  isToday: boolean
   results: QuestionResult[]
   selectedAnswer?: string
   votePending: boolean
@@ -332,14 +340,14 @@ function DailyQuestion({
           <Icon name="spark" size={14} /> PITANJE {questionNumber} OD 5
         </div>
         <div className="time-chip">
-          <span /> UŽIVO · {currentTime}
+          <span /> {isToday ? `UŽIVO · ${currentTime}` : "ARHIVA"}
         </div>
       </div>
       <div className="category-label">
         {question.category.toLocaleUpperCase("sr-Latn-RS")}
       </div>
       <h2>{question.title}</h2>
-      {question.subtitle && <p className="question-subtitle">{question.subtitle}</p>}
+      {question.subtitle && questionNumber !== 5 && <p className="question-subtitle">{question.subtitle}</p>}
       {question.imagePath && (
         <figure className="question-visual">
           <img src={question.imagePath} alt={"Vizuelni prikaz za pitanje: " + question.title} loading="lazy" />
@@ -540,8 +548,10 @@ function HomeScreen({
   onVote,
   setTab,
   onShare,
+  selectedDay,
 }: {
   questions: PublicQuestion[]
+  selectedDay: string
   dailyQuestions: PublicQuestion[]
   resultsByQuestion: ResultsByQuestion
   answers: AnswersByQuestion
@@ -572,14 +582,10 @@ function HomeScreen({
       return counts
     }, new Map<string, number>()),
   ).map(([name, count]) => ({ name, count, mark: categoryMark(name) }))
-  const today = new Intl.DateTimeFormat("sr-Latn-RS", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    timeZone: "Europe/Belgrade",
-  })
-    .format(new Date())
-    .toLocaleUpperCase("sr-Latn-RS")
+  const today = formatPortalDate(selectedDay).toLocaleUpperCase("sr-Latn-RS")
+  const isToday = selectedDay === belgradeDateKey()
+  const completedSelectedDay = dailyQuestions.length === 5 && dailyQuestions.every((question) => answers[question.id])
+  const dayTeaser = completedSelectedDay ? dailyQuestions[4]?.subtitle : null
   return (
     <>
       <Header />
@@ -611,14 +617,14 @@ function HomeScreen({
           <>
             <section className="daily-progress" aria-label="Napredak današnjeg paketa">
               <div>
-                <span>DANAŠNJI PAKET</span>
+                <span>{isToday ? "DANAŠNJI PAKET" : "IZABRANI PAKET"}</span>
                 <strong>{answeredToday} / 5 odgovora</strong>
               </div>
               <div className="daily-progress-track" aria-hidden="true">
                 <i style={{ width: `${Math.min(answeredToday, 5) * 20}%` }} />
               </div>
               {dailyQuestions.length < 5 && (
-                <p>Za danas je objavljeno {dailyQuestions.length} od 5 pitanja. Završni profil čeka kompletan paket.</p>
+                <p>Za ovaj dan je objavljeno {dailyQuestions.length} od 5 pitanja. Završni profil čeka kompletan paket.</p>
               )}
             </section>
             <div className="daily-flow">
@@ -627,6 +633,7 @@ function HomeScreen({
                   key={question.id}
                   question={question}
                   questionNumber={index + 1}
+                  isToday={isToday}
                   results={resultsByQuestion[question.id] ?? []}
                   selectedAnswer={answers[question.id]}
                   votePending={votePending === question.id}
@@ -636,11 +643,17 @@ function HomeScreen({
                 />
               ))}
             </div>
+            {dayTeaser && (
+              <section className="tomorrow-teaser">
+                <span>NAJAVA ZA SUTRA</span>
+                <p>{dayTeaser}</p>
+              </section>
+            )}
           </>
         ) : (
           <DataState
-            title="Danas još nema pitanja"
-            message="Prvo pitanje za današnji paket pojaviće se ovde čim bude objavljeno."
+            title="Za ovaj dan još nema pitanja"
+            message="Izaberi drugi datum iz kalendara ili se vrati kada budu objavljena nova pitanja."
           />
         )}
         {!!questions.length && (
@@ -686,8 +699,12 @@ function ExploreScreen({
   onToggleSave,
   onVote,
   onRetry,
+  availableDays,
+  onSelectDay,
 }: {
   questions: PublicQuestion[]
+  availableDays: string[]
+  onSelectDay: (date: string) => void
   resultsByQuestion: ResultsByQuestion
   saved: string[]
   answers: AnswersByQuestion
@@ -726,6 +743,28 @@ function ExploreScreen({
           </h2>
           <p>Pronađi teme koje su ti važne i dodaj svoj glas.</p>
         </div>
+        <section className="archive-calendar">
+          <div className="archive-calendar-heading">
+            <span>ARHIVA I KALENDAR</span>
+            <h3>Izaberi dan za glasanje</h3>
+            <p>Otvori dnevni paket. Ako još nisi glasao/la, počinješ od prvog pitanja.</p>
+          </div>
+          <div className="archive-days">
+            {availableDays.map((date) => {
+              const dayQuestions = questions.filter((question) => question.questionDate === date)
+              const answered = dayQuestions.filter((question) => answers[question.id]).length
+              const completed = dayQuestions.length === 5 && answered === 5
+              return (
+                <button className="archive-day" key={date} onClick={() => onSelectDay(date)}>
+                  <span>{formatPortalDate(date)}</span>
+                  <small>{completed ? "Završeno · pregledaj rezultate" : `${answered}/5 odgovora · nastavi paket`}</small>
+                  <Icon name="arrow" size={17} />
+                </button>
+              )
+            })}
+            {!availableDays.length && <p className="archive-empty">Kalendar će se popuniti čim stignu pitanja.</p>}
+          </div>
+        </section>
         <label className="search-field">
           <Icon name="search" size={19} />
           <input
@@ -983,6 +1022,7 @@ function SavedScreen({
 
 function ProfileScreen({
   questions,
+  selectedDay,
   dailyQuestions,
   resultsByQuestion,
   answers,
@@ -990,6 +1030,7 @@ function ProfileScreen({
   onContinue,
 }: {
   questions: PublicQuestion[]
+  selectedDay: string
   dailyQuestions: PublicQuestion[]
   resultsByQuestion: ResultsByQuestion
   answers: AnswersByQuestion
@@ -1074,7 +1115,7 @@ function ProfileScreen({
         </section>
         {dailyQuestions.length > 0 && (
           <section className={`daily-profile-card ${completedDailyGroup ? "is-complete" : ""}`}>
-            <span className="daily-profile-eyebrow">DANAŠNJI REZULTAT</span>
+            <span className="daily-profile-eyebrow">{selectedDay === belgradeDateKey() ? "DANAŠNJI REZULTAT" : `REZULTAT · ${formatPortalDate(selectedDay).toLocaleUpperCase("sr-Latn-RS")}`}</span>
             {completedDailyGroup ? (
               <>
                 <div className="daily-profile-group">
@@ -1105,6 +1146,12 @@ function ProfileScreen({
                 </button>
               </>
             )}
+          </section>
+        )}
+        {dailyQuestions.length === 5 && dailyQuestions.every((question) => answers[question.id]) && dailyQuestions[4]?.subtitle && (
+          <section className="tomorrow-teaser">
+            <span>NAJAVA ZA SUTRA</span>
+            <p>{dailyQuestions[4].subtitle}</p>
           </section>
         )}
         <section className="voice-card">
@@ -1361,6 +1408,8 @@ function BottomNav({ tab, setTab }: BottomNavProps) {
 export default function App() {
   const [tab, setTab] = useState<Tab>("home")
   const [shareQuestionId, setShareQuestionId] = useState<string | null>(null)
+  const [selectedDay, setSelectedDay] = useState(belgradeDateKey)
+  const [completionIntent, setCompletionIntent] = useState<string | null>(null)
   const [questions, setQuestions] = useState<PublicQuestion[]>([])
   const [resultsByQuestion, setResultsByQuestion] =
     useState<ResultsByQuestion>({})
@@ -1384,21 +1433,23 @@ export default function App() {
   const hasLoadedRef = useRef(false)
   const [votePending, setVotePending] = useState<string | null>(null)
   const [voteErrors, setVoteErrors] = useState<Record<string, string>>({})
-  const todayKey = belgradeDateKey()
   const dailyQuestions = useMemo(
     () =>
       questions
-        .filter((question) => question.questionDate === todayKey)
+        .filter((question) => question.questionDate === selectedDay)
         .sort((left, right) => left.slug.localeCompare(right.slug, "en"))
         .slice(0, 5),
-    [questions, todayKey],
+    [questions, selectedDay],
   )
   const dailyCompleted =
     dailyQuestions.length === 5 && dailyQuestions.every((question) => answers[question.id] !== undefined)
 
   useEffect(() => {
-    if (dailyCompleted && votePending === null) setTab("profile")
-  }, [dailyCompleted, votePending])
+    if (dailyCompleted && votePending === null && completionIntent === selectedDay) {
+      setTab("profile")
+      setCompletionIntent(null)
+    }
+  }, [dailyCompleted, votePending, completionIntent, selectedDay])
 
   useEffect(() => {
     let cancelled = false
@@ -1407,7 +1458,7 @@ export default function App() {
       if (!hasLoadedRef.current) setLoading(true)
       setLoadError(null)
       try {
-        const publishedQuestions = await getPublishedQuestions()
+        const publishedQuestions = await getAvailableQuestions()
         const resultEntries = await Promise.all(
           publishedQuestions.map(async (question) => [
             question.id,
@@ -1479,6 +1530,12 @@ export default function App() {
     )
   }
 
+  const selectArchiveDay = (date: string) => {
+    setSelectedDay(date)
+    setCompletionIntent(null)
+    changeTab("home")
+  }
+
   const handleVote = async (questionId: string, optionId: string) => {
     if (votePending) return
 
@@ -1508,6 +1565,9 @@ export default function App() {
         }))
       }
       setAnswers((current) => ({ ...current, [questionId]: optionId }))
+      if (dailyQuestions.length === 5 && dailyQuestions[4].id === questionId) {
+        setCompletionIntent(selectedDay)
+      }
     } catch (error) {
       const code =
         error instanceof VoteSubmissionError
@@ -1538,6 +1598,7 @@ export default function App() {
           <HomeScreen
             questions={questions}
             dailyQuestions={dailyQuestions}
+            selectedDay={selectedDay}
             resultsByQuestion={resultsByQuestion}
             answers={answers}
             votePending={votePending}
@@ -1559,6 +1620,8 @@ export default function App() {
         {tab === "explore" && (
           <ExploreScreen
             questions={questions}
+            availableDays={[...new Set(questions.map((question) => question.questionDate).filter((date): date is string => Boolean(date)))].sort((left, right) => right.localeCompare(left))}
+            onSelectDay={selectArchiveDay}
             resultsByQuestion={resultsByQuestion}
             saved={saved}
             answers={answers}
@@ -1590,6 +1653,7 @@ export default function App() {
           <ProfileScreen
             questions={questions}
             dailyQuestions={dailyQuestions}
+            selectedDay={selectedDay}
             resultsByQuestion={resultsByQuestion}
             answers={answers}
             savedCount={saved.length}
