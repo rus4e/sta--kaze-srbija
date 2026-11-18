@@ -180,6 +180,59 @@ function categoryMark(category: string): string {
   return marks[category] ?? category.slice(0, 1).toLocaleUpperCase("sr-Latn-RS")
 }
 
+function belgradeDateKey(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date())
+  const value = (type: string) => parts.find((part) => part.type === type)?.value
+  return `${value("year")}-${value("month")}-${value("day")}`
+}
+
+function dailyMajorityMatches(
+  questions: PublicQuestion[],
+  answers: AnswersByQuestion,
+  resultsByQuestion: ResultsByQuestion,
+): { matched: number; ready: number } {
+  let matched = 0
+  let ready = 0
+  for (const question of questions) {
+    const selected = answers[question.id]
+    const results = resultsByQuestion[question.id] ?? []
+    if (!selected || !results.length) continue
+    const highest = Math.max(...results.map((result) => result.votes))
+    ready += 1
+    if (results.some((result) => result.optionId === selected && result.votes === highest)) {
+      matched += 1
+    }
+  }
+  return { matched, ready }
+}
+
+function dailyVoterGroup(matched: number): { name: string; copy: string; emoji: string } {
+  if (matched >= 4) {
+    return {
+      name: "Glas većine, ali sa stavom",
+      copy: "Često si na istoj talasnoj dužini sa Srbijom — ali glas je i dalje tvoj.",
+      emoji: "🧭",
+    }
+  }
+  if (matched >= 2) {
+    return {
+      name: "Diplomata sa kompasom",
+      copy: "Nekad ideš uz većinu, nekad svojim putem. Kompas radi, samo ne voli autopilot.",
+      emoji: "🗺️",
+    }
+  }
+  return {
+    name: "Sam svoj uzorak",
+    copy: "Danas si češće birao drugačije. Većina je zanimljiva, ali ti nisi fusnota.",
+    emoji: "✨",
+  }
+}
+
 function OfficialLogo({ compact = false }: { compact?: boolean }) {
   return (
     <img
@@ -243,6 +296,7 @@ function DataState({
 
 function DailyQuestion({
   question,
+  questionNumber,
   results,
   selectedAnswer,
   votePending,
@@ -251,6 +305,7 @@ function DailyQuestion({
   onShare,
 }: {
   question: PublicQuestion
+  questionNumber: number
   results: QuestionResult[]
   selectedAnswer?: string
   votePending: boolean
@@ -270,11 +325,11 @@ function DailyQuestion({
       <div className="card-ornament ornament-left" />
       <div className="card-ornament ornament-right" />
       <span className="daily-index" aria-hidden="true">
-        01
+        {String(questionNumber).padStart(2, "0")}
       </span>
       <div className="daily-head">
         <div className="eyebrow">
-          <Icon name="spark" size={14} /> PITANJE DANA
+          <Icon name="spark" size={14} /> PITANJE {questionNumber} OD 5
         </div>
         <div className="time-chip">
           <span /> UŽIVO · {currentTime}
@@ -474,6 +529,7 @@ function TrendingSection({
 
 function HomeScreen({
   questions,
+  dailyQuestions,
   resultsByQuestion,
   answers,
   votePending,
@@ -486,6 +542,7 @@ function HomeScreen({
   onShare,
 }: {
   questions: PublicQuestion[]
+  dailyQuestions: PublicQuestion[]
   resultsByQuestion: ResultsByQuestion
   answers: AnswersByQuestion
   votePending: string | null
@@ -495,9 +552,20 @@ function HomeScreen({
   onRetry: () => void
   onVote: (questionId: string, optionId: string) => void
   setTab: (tab: Tab) => void
-  onShare: () => void
+  onShare: (questionId: string) => void
 }) {
-  const dailyQuestion = questions[0]
+  const firstUnansweredIndex = dailyQuestions.findIndex((question) => !answers[question.id])
+  const pendingIndex = votePending
+    ? dailyQuestions.findIndex((question) => question.id === votePending)
+    : -1
+  const lastVisibleIndex =
+    pendingIndex >= 0
+      ? pendingIndex
+      : firstUnansweredIndex >= 0
+        ? firstUnansweredIndex
+        : dailyQuestions.length - 1
+  const visibleDailyQuestions = dailyQuestions.slice(0, lastVisibleIndex + 1)
+  const answeredToday = dailyQuestions.filter((question) => answers[question.id]).length
   const categories = Array.from(
     questions.reduce((counts, question) => {
       counts.set(question.category, (counts.get(question.category) ?? 0) + 1)
@@ -508,6 +576,7 @@ function HomeScreen({
     weekday: "long",
     day: "numeric",
     month: "long",
+    timeZone: "Europe/Belgrade",
   })
     .format(new Date())
     .toLocaleUpperCase("sr-Latn-RS")
@@ -521,11 +590,11 @@ function HomeScreen({
             <h1>Dobro došli na portal.</h1>
           </div>
           <div className="streak">
-            <strong>{questions.length}</strong>
+            <strong>{answeredToday}/5</strong>
             <span>
-              aktivnih
+              današnjih
               <br />
-              pitanja
+              odgovora
             </span>
           </div>
         </div>
@@ -538,20 +607,40 @@ function HomeScreen({
             message={loadError}
             onRetry={onRetry}
           />
-        ) : dailyQuestion ? (
-          <DailyQuestion
-            question={dailyQuestion}
-            results={resultsByQuestion[dailyQuestion.id] ?? []}
-            selectedAnswer={answers[dailyQuestion.id]}
-            votePending={votePending === dailyQuestion.id}
-            voteError={voteErrors[dailyQuestion.id]}
-            onVote={onVote}
-            onShare={onShare}
-          />
+        ) : dailyQuestions.length ? (
+          <>
+            <section className="daily-progress" aria-label="Napredak današnjeg paketa">
+              <div>
+                <span>DANAŠNJI PAKET</span>
+                <strong>{answeredToday} / 5 odgovora</strong>
+              </div>
+              <div className="daily-progress-track" aria-hidden="true">
+                <i style={{ width: `${Math.min(answeredToday, 5) * 20}%` }} />
+              </div>
+              {dailyQuestions.length < 5 && (
+                <p>Za danas je objavljeno {dailyQuestions.length} od 5 pitanja. Završni profil čeka kompletan paket.</p>
+              )}
+            </section>
+            <div className="daily-flow">
+              {visibleDailyQuestions.map((question, index) => (
+                <DailyQuestion
+                  key={question.id}
+                  question={question}
+                  questionNumber={index + 1}
+                  results={resultsByQuestion[question.id] ?? []}
+                  selectedAnswer={answers[question.id]}
+                  votePending={votePending === question.id}
+                  voteError={voteErrors[question.id]}
+                  onVote={onVote}
+                  onShare={() => onShare(question.id)}
+                />
+              ))}
+            </div>
+          </>
         ) : (
           <DataState
-            title="Trenutno nema pitanja"
-            message="Novo objavljeno pitanje pojaviće se ovde."
+            title="Danas još nema pitanja"
+            message="Prvo pitanje za današnji paket pojaviće se ovde čim bude objavljeno."
           />
         )}
         {!!questions.length && (
@@ -894,12 +983,18 @@ function SavedScreen({
 
 function ProfileScreen({
   questions,
+  dailyQuestions,
+  resultsByQuestion,
   answers,
   savedCount,
+  onContinue,
 }: {
   questions: PublicQuestion[]
+  dailyQuestions: PublicQuestion[]
+  resultsByQuestion: ResultsByQuestion
   answers: AnswersByQuestion
   savedCount: number
+  onContinue: () => void
 }) {
   const [panel, setPanel] = useState<"history" | "settings" | null>(null)
   const [anonymous, setAnonymous] = useState(
@@ -926,6 +1021,17 @@ function ProfileScreen({
   const favoriteCategories = [...categoryCounts.entries()]
     .sort((left, right) => right[1] - left[1])
     .slice(0, 3)
+  const dailyAnswered = dailyQuestions.filter((question) => answers[question.id]).length
+  const dailyMatches = dailyMajorityMatches(dailyQuestions, answers, resultsByQuestion)
+  const dailyCategoryCounts = dailyQuestions.reduce((counts, question) => {
+    if (answers[question.id]) counts.set(question.category, (counts.get(question.category) ?? 0) + 1)
+    return counts
+  }, new Map<string, number>())
+  const dailyTopCategory = [...dailyCategoryCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0]
+  const completedDailyGroup =
+    dailyQuestions.length === 5 && dailyAnswered === 5 && dailyMatches.ready === 5
+      ? dailyVoterGroup(dailyMatches.matched)
+      : null
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -966,6 +1072,41 @@ function ProfileScreen({
             </div>
           </div>
         </section>
+        {dailyQuestions.length > 0 && (
+          <section className={`daily-profile-card ${completedDailyGroup ? "is-complete" : ""}`}>
+            <span className="daily-profile-eyebrow">DANAŠNJI REZULTAT</span>
+            {completedDailyGroup ? (
+              <>
+                <div className="daily-profile-group">
+                  <span aria-hidden="true">{completedDailyGroup.emoji}</span>
+                  <div>
+                    <h3>{completedDailyGroup.name}</h3>
+                    <p>{completedDailyGroup.copy}</p>
+                  </div>
+                </div>
+                <div className="daily-profile-stats">
+                  <div><strong>{dailyAnswered}/5</strong><span>odgovora danas</span></div>
+                  <div><strong>{dailyMatches.matched}/5</strong><span>izbora uz većinu</span></div>
+                  <div><strong>{dailyTopCategory ?? "—"}</strong><span>najčešća tema</span></div>
+                </div>
+                <small>Ovo je dnevna igra poređenja odgovora, ne ozbiljna procena ličnosti.</small>
+              </>
+            ) : dailyQuestions.length === 5 && dailyAnswered === 5 ? (
+              <>
+                <h3>Pet odgovora je sačuvano</h3>
+                <p>Rezultati većine trenutno nisu dostupni za {5 - dailyMatches.ready} pitanja, pa dnevnu grupu nećemo nagađati. Osveži stranicu da ponovo učitamo statistiku.</p>
+              </>
+            ) : (
+              <>
+                <h3>Još jedan korak do današnje statistike</h3>
+                <p>Odgovorio/la si na {dailyAnswered} od 5 pitanja. Posle petog dobijaš svoju dnevnu grupu i pregled odgovora.</p>
+                <button type="button" onClick={onContinue}>
+                  Nastavi današnja pitanja
+                </button>
+              </>
+            )}
+          </section>
+        )}
         <section className="voice-card">
           <div className="voice-head">
             <div>
@@ -1219,7 +1360,7 @@ function BottomNav({ tab, setTab }: BottomNavProps) {
 
 export default function App() {
   const [tab, setTab] = useState<Tab>("home")
-  const [shareOpen, setShareOpen] = useState(false)
+  const [shareQuestionId, setShareQuestionId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<PublicQuestion[]>([])
   const [resultsByQuestion, setResultsByQuestion] =
     useState<ResultsByQuestion>({})
@@ -1243,7 +1384,21 @@ export default function App() {
   const hasLoadedRef = useRef(false)
   const [votePending, setVotePending] = useState<string | null>(null)
   const [voteErrors, setVoteErrors] = useState<Record<string, string>>({})
-  const dailyQuestion = useMemo(() => questions[0], [questions])
+  const todayKey = belgradeDateKey()
+  const dailyQuestions = useMemo(
+    () =>
+      questions
+        .filter((question) => question.questionDate === todayKey)
+        .sort((left, right) => left.slug.localeCompare(right.slug, "en"))
+        .slice(0, 5),
+    [questions, todayKey],
+  )
+  const dailyCompleted =
+    dailyQuestions.length === 5 && dailyQuestions.every((question) => answers[question.id] !== undefined)
+
+  useEffect(() => {
+    if (dailyCompleted && votePending === null) setTab("profile")
+  }, [dailyCompleted, votePending])
 
   useEffect(() => {
     let cancelled = false
@@ -1338,7 +1493,6 @@ export default function App() {
       const voterKey = getAnonymousVoterKey()
       await submitQuestionVote(questionId, optionId, voterKey)
       storeVoteChoice(questionId, optionId)
-      setAnswers((current) => ({ ...current, [questionId]: optionId }))
 
       try {
         const freshResults = await getQuestionResults(questionId)
@@ -1353,6 +1507,7 @@ export default function App() {
             "Glas je prihvaćen, ali osveženi rezultati trenutno nisu dostupni.",
         }))
       }
+      setAnswers((current) => ({ ...current, [questionId]: optionId }))
     } catch (error) {
       const code =
         error instanceof VoteSubmissionError
@@ -1382,6 +1537,7 @@ export default function App() {
         {tab === "home" && (
           <HomeScreen
             questions={questions}
+            dailyQuestions={dailyQuestions}
             resultsByQuestion={resultsByQuestion}
             answers={answers}
             votePending={votePending}
@@ -1397,7 +1553,7 @@ export default function App() {
               void handleVote(questionId, optionId)
             }
             setTab={changeTab}
-            onShare={() => setShareOpen(true)}
+            onShare={(questionId) => setShareQuestionId(questionId)}
           />
         )}
         {tab === "explore" && (
@@ -1433,16 +1589,19 @@ export default function App() {
         {tab === "profile" && (
           <ProfileScreen
             questions={questions}
+            dailyQuestions={dailyQuestions}
+            resultsByQuestion={resultsByQuestion}
             answers={answers}
             savedCount={saved.length}
+            onContinue={() => changeTab("home")}
           />
         )}
         <BottomNav tab={tab} setTab={changeTab} />
-        {shareOpen && dailyQuestion && (
+        {shareQuestionId && questions.find((question) => question.id === shareQuestionId) && (
           <ShareSheet
-            question={dailyQuestion}
-            results={resultsByQuestion[dailyQuestion.id] ?? []}
-            onClose={() => setShareOpen(false)}
+            question={questions.find((question) => question.id === shareQuestionId)!}
+            results={resultsByQuestion[shareQuestionId] ?? []}
+            onClose={() => setShareQuestionId(null)}
           />
         )}
       </div>

@@ -79,7 +79,7 @@ export async function loadEditorialPackages(): Promise<DemoPackage[]> {
   const { data: questionData, error: questionError } = await supabase
     .from("questions")
     .select("id, slug, status, title, category, question_date, publish_at")
-    .gte("question_date", belgradeDateNow())
+    .gte("question_date", weekStartFor(belgradeDateNow()))
     .order("question_date", { ascending: true })
     .limit(500)
   if (questionError) {
@@ -216,7 +216,7 @@ export async function saveEditorialQuestion(question: DemoQuestion) {
 
   const { data: currentMetadata, error: currentMetadataError } = await supabase
     .from("question_editorial_metadata")
-    .select("question_type, asset_ready")
+    .select("editorial_status, question_type, asset_ready")
     .eq("question_id", question.id)
     .maybeSingle()
   if (currentMetadataError) {
@@ -225,11 +225,15 @@ export async function saveEditorialQuestion(question: DemoQuestion) {
   if (!currentMetadata) throw new Error("Urednički podaci nisu pronađeni.")
   const nextAssetReady = question.type === "Tekstualno" ||
     (currentMetadata.question_type === question.type && currentMetadata.asset_ready)
+  const nextEditorialStatus =
+    currentQuestion.status === "published"
+      ? currentMetadata.editorial_status
+      : question.status
   const { data: updatedMetadata, error: metadataError } = await supabase
     .from("question_editorial_metadata")
     .update({
       question_type: question.type,
-      editorial_status: question.status,
+      editorial_status: nextEditorialStatus,
       asset_ready: nextAssetReady,
       editorial_note: question.rationale.trim() || null,
       week_start: weekStartFor(question.publishDate),

@@ -7,6 +7,17 @@ import {
 } from "../components/AdminCommon"
 import { AdminIcon } from "../components/AdminIcon"
 
+function belgradeToday() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Belgrade",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date())
+  const value = (type: string) => parts.find((part) => part.type === type)?.value
+  return `${value("year")}-${value("month")}-${value("day")}`
+}
+
 export function WeeklyPlanScreen({ packages }: { packages: DemoPackage[] }) {
   const [openPackage, setOpenPackage] = useState(packages[0].id)
   return (
@@ -175,16 +186,30 @@ export function ReviewScreen({
   publishQuestion: (id: string) => Promise<"Zakazano" | "Objavljeno">
 }) {
   const reviewable = questions.filter((question) =>
-    ["Čeka proveru", "Predlog AI", "Odobreno", "Odbijeno"].includes(question.status),
+    ["Čeka proveru", "Predlog AI", "Odobreno", "Odbijeno", "Zakazano"].includes(question.status),
   )
   const [selectedId, setSelectedId] = useState(reviewable[0]?.id)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState("")
   const [messageIsError, setMessageIsError] = useState(false)
+  const [imageState, setImageState] = useState<{
+    path: string
+    status: "loaded" | "error"
+  } | null>(null)
   const selected = reviewable.find((question) => question.id === selectedId) ?? reviewable[0]
+  const imagePath = selected?.imagePath
+  const imageStatus = !imagePath
+    ? "none"
+    : imageState?.path === imagePath
+      ? imageState.status
+      : "loading"
+  const imageVerified =
+    selected?.type === "Tekstualno" ||
+    (selected?.assetReady === true && imageStatus === "loaded")
+  const dateIsPast = !!selected && selected.publishDate < belgradeToday()
 
   const runStatusChange = async (status: "Odobreno" | "Odbijeno") => {
-    if (!selected || busy) return
+    if (!selected || busy || selected.status === "Zakazano") return
     setBusy(true)
     setMessage("")
     try {
@@ -206,7 +231,11 @@ export function ReviewScreen({
     setMessage("")
     try {
       await saveQuestion(selected)
-      setMessage("Izmene su sačuvane. Pitanje ostaje nacrt.")
+      setMessage(
+        selected.status === "Zakazano"
+          ? "Izmene su sačuvane. Zakazani termin ostaje aktivan."
+          : "Izmene su sačuvane. Pitanje ostaje nacrt.",
+      )
       setMessageIsError(false)
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Izmena nije sačuvana.")
@@ -217,7 +246,14 @@ export function ReviewScreen({
   }
 
   const runPublish = async () => {
-    if (!selected || busy || selected.status !== "Odobreno" || !selected.assetReady) return
+    if (
+      !selected ||
+      busy ||
+      selected.status !== "Odobreno" ||
+      !selected.assetReady ||
+      !imageVerified ||
+      dateIsPast
+    ) return
     const dateLabel = new Intl.DateTimeFormat("sr-Latn-RS", {
       dateStyle: "long",
       timeZone: "Europe/Belgrade",
@@ -260,7 +296,7 @@ export function ReviewScreen({
       <AdminPageHeader
         eyebrow="RUČNA KONTROLA"
         title="Urednički pregled"
-        description="Odobrena pitanja ostaju nacrti dok izričito ne aktiviraš objavu."
+        description="Pregledaj odobrene nacrte i zakazane objave; izmene zakazanih pitanja ne prekidaju termin."
         action={<DemoBadge>SAČUVANO U REDAKCIJI</DemoBadge>}
       />
       <div className="review-layout">
@@ -287,11 +323,36 @@ export function ReviewScreen({
             Tekst pitanja
             <textarea value={selected.text} disabled={busy} onChange={(event) => updateQuestion({ ...selected, text: event.target.value })} />
           </label>
-          {selected.imagePath && (
-            <figure className="question-asset-preview">
-              <img src={selected.imagePath} alt={"Vizuelni prikaz za pitanje " + (selected.code ?? "")} />
-              <figcaption>Pripremljen vizual za ovo pitanje</figcaption>
-            </figure>
+          {selected.type !== "Tekstualno" && (
+            imagePath ? (
+              <figure className="question-asset-preview">
+                <img
+                  src={imagePath}
+                  alt={"Vizuelni prikaz za pitanje " + (selected.code ?? "")}
+                  onLoad={() => setImageState({ path: imagePath, status: "loaded" })}
+                  onError={() => setImageState({ path: imagePath, status: "error" })}
+                />
+                <figcaption>
+                  <span className={`asset-verify asset-verify--${imageStatus}`} role={imageStatus === "error" ? "alert" : "status"}>
+                    {imageStatus === "loaded"
+                      ? selected.assetReady
+                        ? "Slika je učitana sa javnog sajta."
+                        : "Fajl se učitao, ali nije označen kao spreman."
+                      : imageStatus === "error"
+                        ? "Slika nije mogla da se učita."
+                        : "Proveravam da li je slika dostupna…"}
+                  </span>
+                  <a href={imagePath} target="_blank" rel="noopener noreferrer">
+                    Otvori originalnu sliku
+                  </a>
+                </figcaption>
+              </figure>
+            ) : (
+              <div className="admin-alert">
+                <AdminIcon name="image" size={16} />
+                <p>Za ovo pitanje nije povezana slika na javnom sajtu.</p>
+              </div>
+            )
           )}
           <div className="editor-row">
             <label>
@@ -308,7 +369,7 @@ export function ReviewScreen({
             </label>
             <label>
               Datum
-              <input type="date" value={selected.publishDate} disabled={busy} onChange={(event) => updateQuestion({ ...selected, publishDate: event.target.value })} />
+              <input type="date" value={selected.publishDate} disabled={busy || selected.status === "Zakazano"} onChange={(event) => updateQuestion({ ...selected, publishDate: event.target.value })} />
             </label>
           </div>
           <fieldset>
@@ -324,10 +385,16 @@ export function ReviewScreen({
             Beleška ili smernica za vizuelni materijal
             <textarea className="small" value={selected.rationale} disabled={busy} onChange={(event) => updateQuestion({ ...selected, rationale: event.target.value })} />
           </label>
-          {selected.type !== "Tekstualno" && (
-            <div className="admin-alert">
-              <AdminIcon name="image" size={16} />
-              <p>{selected.assetReady ? "Vizuelni materijal je povezan." : "Slika još nije pripremljena. Pitanje ne može biti javno objavljeno dok se ne poveže vizuelni materijal."}</p>
+          {selected.status === "Zakazano" && (
+            <div className="admin-alert scheduled-edit-note">
+              <AdminIcon name="calendar" size={16} />
+              <p>Ovo pitanje je već zakazano. Možeš urediti tekst i odgovore; postojeći termin ostaje aktivan.</p>
+            </div>
+          )}
+          {dateIsPast && selected.status !== "Zakazano" && (
+            <div className="admin-alert past-date-warning" role="alert">
+              <AdminIcon name="warning" size={16} />
+              <p>Izabrani datum je prošao. Pitanje možeš sačuvati kao nacrt, ali ga neću zakazati za prošli termin.</p>
             </div>
           )}
           <div className="editor-checks">
@@ -336,17 +403,25 @@ export function ReviewScreen({
             ))}
           </div>
           <div className="editor-actions">
-            <button type="button" disabled={busy} onClick={() => void runSave()}>Sačuvaj izmene</button>
-            <button className="reject" type="button" disabled={busy} onClick={() => void runStatusChange("Odbijeno")}>Odbij pitanje</button>
-            <button disabled title="AI servis nije povezan"><AdminIcon name="spark" size={15} /> Regeneriši (planirano)</button>
-            <button className="approve" type="button" disabled={busy} onClick={() => void runStatusChange("Odobreno")}><AdminIcon name="check" size={15} /> Ručno odobri</button>
-            <button className="approve" type="button" disabled={busy || selected.status !== "Odobreno" || !selected.assetReady} title={!selected.assetReady ? "Najpre pripremi i poveži vizuelni materijal." : "Aktiviraj javnu objavu ili zakazani termin."} onClick={() => void runPublish()}>
-              <AdminIcon name="check" size={15} /> Objavi / zakaži
+            <button type="button" disabled={busy} onClick={() => void runSave()}>
+              {selected.status === "Zakazano" ? "Sačuvaj izmene · termin ostaje" : "Sačuvaj izmene"}
             </button>
+            {selected.status !== "Zakazano" && (
+              <>
+                <button className="reject" type="button" disabled={busy} onClick={() => void runStatusChange("Odbijeno")}>Odbij pitanje</button>
+                <button disabled title="AI servis nije povezan"><AdminIcon name="spark" size={15} /> Regeneriši (planirano)</button>
+                <button className="approve" type="button" disabled={busy} onClick={() => void runStatusChange("Odobreno")}><AdminIcon name="check" size={15} /> Ručno odobri</button>
+                <button className="approve" type="button" disabled={busy || selected.status !== "Odobreno" || !selected.assetReady || !imageVerified || dateIsPast} title={dateIsPast ? "Izabrani datum je prošao." : !imageVerified ? "Najpre proveri da je vizuelni fajl učitan i označen kao spreman." : "Aktiviraj javnu objavu ili zakazani termin."} onClick={() => void runPublish()}>
+                  <AdminIcon name="check" size={15} /> Objavi / zakaži
+                </button>
+              </>
+            )}
           </div>
           {message && <p className={messageIsError ? "editor-disclaimer is-error" : "editor-disclaimer"} role={messageIsError ? "alert" : "status"}>{message}</p>}
           <p className="editor-disclaimer">
-            Pitanje se objavljuje tek posle tvoje potvrde. Termin 08:00 je upisan u nacrt; vizuelna pitanja čekaju sliku.
+            {selected.status === "Zakazano"
+              ? "Promene teksta i odgovora čuvaju postojeći termin. Vizuelna pitanja proveri u prikazu slike."
+              : "Pitanje se objavljuje tek posle tvoje potvrde. Termin je 08:00 po vremenu Beograda; vizuelna pitanja moraju imati učitan fajl."}
           </p>
         </section>
       </div>

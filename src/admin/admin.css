@@ -335,3 +335,44 @@
   font-size: 7px;
   text-align: right;
 }
+
+.asset-verify {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.asset-verify--loading {
+  color: #735b2f;
+  background: #f6edcf;
+}
+.asset-verify--loaded {
+  color: #1f6446;
+  background: #dff2e7;
+}
+.asset-verify--error {
+  color: #8c2730;
+  background: #f9e2e2;
+}
+.question-asset-preview figcaption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 9px;
+}
+.question-asset-preview figcaption a {
+  color: var(--admin-green, #1f4b3a);
+  font-size: 12px;
+  font-weight: 700;
+}
+.scheduled-edit-note,
+.past-date-warning {
+  margin-block: 10px;
+}
+.scheduled-edit-note {
+  border-color: rgba(31, 75, 58, .22);
+}

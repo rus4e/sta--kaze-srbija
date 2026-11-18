@@ -406,3 +406,147 @@
   display: block;
   margin-top: 8px;
 }
+
+
+/* Dnevni tok pitanja i završna statistika */
+.daily-progress {
+  margin: 0 0 14px;
+  padding: 14px 15px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 250, 241, .82);
+}
+.daily-progress > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.daily-progress > div:first-child span {
+  color: var(--gold);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .14em;
+}
+.daily-progress > div:first-child strong {
+  color: var(--green);
+  font-size: 9px;
+}
+.daily-progress-track {
+  height: 5px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: #e4dccf;
+  overflow: hidden;
+}
+.daily-progress-track i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--burgundy);
+  transition: width .35s ease;
+}
+.daily-progress p {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.daily-flow {
+  display: grid;
+  gap: 14px;
+}
+.daily-profile-card {
+  margin: 0 0 19px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  background: var(--paper);
+  box-shadow: 0 7px 19px rgba(67, 42, 25, .055);
+}
+.daily-profile-card.is-complete {
+  color: white;
+  border-color: var(--green);
+  background: var(--green);
+}
+.daily-profile-eyebrow {
+  color: var(--gold);
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .16em;
+}
+.daily-profile-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-top: 10px;
+}
+.daily-profile-group > span {
+  width: 39px;
+  height: 39px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 13px;
+  background: rgba(255,255,255,.12);
+  font-size: 20px;
+}
+.daily-profile-group h3,
+.daily-profile-card > h3 {
+  font: 600 18px/1.2 'Playfair Display', serif;
+}
+.daily-profile-group p,
+.daily-profile-card > p {
+  margin-top: 5px;
+  color: rgba(255,255,255,.75);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.daily-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 15px;
+  padding-top: 13px;
+  border-top: 1px solid rgba(255,255,255,.18);
+}
+.daily-profile-stats > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+.daily-profile-stats strong {
+  overflow-wrap: anywhere;
+  color: #f3dfad;
+  font: 700 18px/1.1 'Playfair Display', serif;
+}
+.daily-profile-stats span {
+  margin-top: 4px;
+  color: rgba(255,255,255,.68);
+  font-size: 7px;
+  line-height: 1.3;
+}
+.daily-profile-card > small {
+  display: block;
+  margin-top: 11px;
+  color: rgba(255,255,255,.56);
+  font-size: 7px;
+  line-height: 1.4;
+}
+.daily-profile-card:not(.is-complete) > h3 {
+  margin-top: 9px;
+  color: var(--ink);
+}
+.daily-profile-card:not(.is-complete) > p {
+  color: var(--muted);
+}
+.daily-profile-card:not(.is-complete) > button {
+  min-height: 36px;
+  margin-top: 12px;
+  padding: 0 13px;
+  border-radius: 10px;
+  color: white;
+  background: var(--burgundy);
+  font-size: 8px;
+  font-weight: 800;
+}
