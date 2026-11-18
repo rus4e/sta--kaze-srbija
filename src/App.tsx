@@ -598,7 +598,7 @@ function HomeScreen({
           <div className="streak">
             <strong>{answeredToday}/5</strong>
             <span>
-              današnjih
+              {isToday ? "današnjih" : "tog dana"}
               <br />
               odgovora
             </span>
