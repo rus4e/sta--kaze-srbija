@@ -255,17 +255,40 @@ function Header({
   title,
   settings = false,
   onAction,
+  activeTab = "home",
+  onTabChange,
 }: {
   title?: string
   settings?: boolean
   onAction?: () => void
+  activeTab?: Tab
+  onTabChange?: (tab: Tab) => void
 }) {
+  const navigation: { id: Tab; label: string; icon: IconName }[] = [
+    { id: "home", label: "Početna", icon: "home" },
+    { id: "explore", label: "Istraži", icon: "compass" },
+    { id: "saved", label: "Sačuvano", icon: "bookmark" },
+    { id: "profile", label: "Profil", icon: "user" },
+  ]
   return (
     <header className="topbar">
       <div className="header-identity">
         <OfficialLogo compact />
         {title && <h1 className="screen-title">{title}</h1>}
       </div>
+      <nav className="header-nav" aria-label="Glavna navigacija">
+        {navigation.map((item) => (
+          <button
+            key={item.id}
+            className={activeTab === item.id ? "active" : ""}
+            aria-current={activeTab === item.id ? "page" : undefined}
+            onClick={() => onTabChange?.(item.id)}
+          >
+            <Icon name={item.icon} size={16} />
+            <span>{item.label}</span>
+          </button>
+        ))}
+      </nav>
       <div className="header-actions">
         <ScriptToggle />
         <button
@@ -302,9 +325,39 @@ function DataState({
   )
 }
 
+function ApprovedScenery() {
+  return (
+    <svg
+      className="approved-scenery"
+      viewBox="0 0 600 230"
+      preserveAspectRatio="xMidYMid slice"
+      aria-hidden="true"
+    >
+      <rect width="600" height="230" fill="#f5d8ae" />
+      <path d="M0 118 Q92 70 188 112 T382 103 T600 91 V230 H0Z" fill="#d9b27d" />
+      <path d="M0 143 Q85 105 168 142 T350 126 T600 127 V230 H0Z" fill="#b58b59" />
+      <path d="M0 166 Q118 129 238 161 T460 149 T600 157 V230 H0Z" fill="#789078" />
+      <g className="approved-temple" transform="translate(420 42)">
+        <path d="M0 77h146v80H0z" fill="#f2e5cb" stroke="#9c6741" strokeWidth="4" />
+        <path d="M-9 79 73 39l82 40z" fill="#9a4938" stroke="#70302b" strokeWidth="4" />
+        <path d="M22 76V48a51 51 0 0 1 102 0v28z" fill="#b68152" stroke="#754431" strokeWidth="4" />
+        <path d="M34 76V51a39 39 0 0 1 78 0v25z" fill="#dfbd86" />
+        <path d="M72 5v31M64 13h16" stroke="#70302b" strokeWidth="5" strokeLinecap="round" />
+        <path d="M20 93v55m26-55v55m27-55v55m27-55v55m27-55v55" stroke="#a46f43" strokeWidth="7" />
+        <path d="M60 157v-33a13 13 0 0 1 26 0v33z" fill="#8c4938" />
+      </g>
+      <path d="M0 190 Q68 148 136 180 T270 181 T397 171 T600 181 V230 H0Z" fill="#315d48" />
+      <path d="M0 202 C90 160 146 224 245 191 S390 167 470 197 550 221 600 188" fill="none" stroke="#8ac5ae" strokeWidth="13" />
+      <path d="M0 202 C90 160 146 224 245 191 S390 167 470 197 550 221 600 188" fill="none" stroke="#e6d5a4" strokeWidth="4" />
+      <path d="M0 222 Q112 187 224 218 T454 214 T600 207" fill="none" stroke="#f5e7c8" strokeWidth="2" opacity=".8" />
+    </svg>
+  )
+}
+
 function DailyQuestion({
   question,
   questionNumber,
+  compact = false,
   isToday,
   results,
   selectedAnswer,
@@ -317,6 +370,7 @@ function DailyQuestion({
 }: {
   question: PublicQuestion
   questionNumber: number
+  compact?: boolean
   isToday: boolean
   results: QuestionResult[]
   selectedAnswer?: string
@@ -335,33 +389,50 @@ function DailyQuestion({
   }).format(new Date())
 
   return (
-    <section className={`daily-card ${voted ? "is-voted" : ""} ${isCurrentQuestion ? "is-flow-current" : ""}`}>
+    <section className={`daily-card ${voted ? "is-voted" : ""} ${isCurrentQuestion ? "is-flow-current" : ""} ${compact ? "is-previous-result" : ""}`}>
       <div className="card-ornament ornament-left" />
       <div className="card-ornament ornament-right" />
-      <span className="daily-index" aria-hidden="true">
-        {String(questionNumber).padStart(2, "0")}
-      </span>
-      <div className="daily-head">
-        <div className="eyebrow">
-          <Icon name="spark" size={14} /> PITANJE {questionNumber} OD 5
-        </div>
-        <div className="time-chip">
-          <span /> {isToday ? `UŽIVO · ${currentTime}` : "ARHIVA"}
-        </div>
-      </div>
-      <div className="category-label">
-        {question.category.toLocaleUpperCase("sr-Latn-RS")}
-      </div>
-      <h2>{question.title}</h2>
-      {question.subtitle && questionNumber !== 5 && <p className="question-subtitle">{question.subtitle}</p>}
-      {question.imagePath && (
+      {compact ? (
+        <>
+          <div className="previous-results-ribbon">
+            <Icon name="trend" size={18} /> REZULTATI PITANJA {questionNumber}
+            <span>PRETHODNO PITANJE</span>
+          </div>
+          <h2 className="previous-question-title">{question.title}</h2>
+        </>
+      ) : (
+        <>
+          <div className="approved-question-ribbon">
+            <span className="approved-ribbon-number">{questionNumber}</span>
+            <strong>PITANJE {questionNumber} OD 5</strong>
+            <small>{isToday ? `UŽIVO · ${currentTime}` : "ARHIVA"}</small>
+          </div>
+          <div className="approved-scene">
+            <ApprovedScenery />
+            <img
+              className="approved-mascot"
+              src={`${import.meta.env.BASE_URL}favicon.png`}
+              alt=""
+            />
+            <div className="approved-speech">
+              <span className="approved-category">{question.category}</span>
+              <h2>{question.title}</h2>
+              {question.subtitle && questionNumber !== 5 && (
+                <p>{question.subtitle}</p>
+              )}
+            </div>
+            <span className="approved-scene-caption">GLASAJ · UPOREDI · SAZNAJ</span>
+          </div>
+        </>
+      )}
+      {!compact && question.imagePath && (
         <figure className="question-visual">
           <img src={question.imagePath} alt={"Vizuelni prikaz za pitanje: " + question.title} loading="lazy" />
         </figure>
       )}
-      <p className="question-meta">
+      {!compact && <p className="question-meta">
         <Icon name="users" size={16} /> {votes.toLocaleString("sr-RS")} glasova
-      </p>
+      </p>}
 
       {!voted ? (
         <div className="vote-block">
@@ -380,10 +451,7 @@ function DailyQuestion({
                 <span
                   className={`vote-icon ${index === 0 ? "" : "vote-icon--no"}`}
                 >
-                  <Icon
-                    name={index === 0 ? "check" : "arrow"}
-                    size={index === 0 ? 20 : 19}
-                  />
+                  {String.fromCharCode(65 + index)}
                 </span>
                 <span>
                   <strong>{option.label}</strong>
@@ -417,8 +485,9 @@ function DailyQuestion({
               value={result.percentage}
               votes={result.votes.toLocaleString("sr-RS")}
               selected={selectedAnswer === result.optionId}
-              color={index === 0 ? "burgundy" : "green"}
+              color={(["burgundy", "green", "gold", "neutral"] as const)[index % 4]}
               majority={result === leadingResult(results)}
+              letter={String.fromCharCode(65 + index)}
             />
           ))}
           <div className="results-footer">
@@ -458,6 +527,7 @@ function ResultBar({
   selected,
   color,
   majority = false,
+  letter,
 }: {
   label: string
   value: number
@@ -465,13 +535,14 @@ function ResultBar({
   selected: boolean
   color: string
   majority?: boolean
+  letter: string
 }) {
   return (
     <div className={`result-row ${selected ? "is-selected" : ""}`}>
       <div className="result-label">
         <span className="result-name">
           <i className={`result-choice result-choice--${color}`}>
-            {selected && <Icon name="check" size={11} />}
+            {letter}
           </i>
           <span>
             {label}
@@ -592,9 +663,14 @@ function HomeScreen({
     : pendingIndex >= 0
       ? pendingIndex
       : firstUnansweredIndex
-  const lastVisibleIndex =
-    currentFlowIndex >= 0 ? currentFlowIndex : dailyQuestions.length - 1
-  const visibleDailyQuestions = dailyQuestions.slice(0, lastVisibleIndex + 1)
+  const activeQuestionIndex = currentFlowIndex >= 0
+    ? currentFlowIndex
+    : dailyQuestions.length - 1
+  const resultPhaseIndex = transitioningIndex >= 0 ? transitioningIndex : pendingIndex
+  const visibleQuestionIndexes = resultPhaseIndex >= 0
+    ? [resultPhaseIndex]
+    : [activeQuestionIndex, activeQuestionIndex - 1]
+        .filter((index) => index >= 0 && index < dailyQuestions.length)
   const answeredToday = dailyQuestions.filter((question) => answers[question.id]).length
   const categories = Array.from(
     questions.reduce((counts, question) => {
@@ -608,12 +684,12 @@ function HomeScreen({
   const dayTeaser = completedSelectedDay ? dailyQuestions[4]?.subtitle : null
   return (
     <>
-      <Header />
+      <Header activeTab="home" onTabChange={setTab} />
       <main className="screen-content home-content">
         <div className="welcome-row">
           <div>
             <span>{today}</span>
-            <h1>Dobro došli na portal.</h1>
+            <h1>Šta danas misliš?</h1>
           </div>
           <div className="streak">
             <strong>{answeredToday}/5</strong>
@@ -648,22 +724,26 @@ function HomeScreen({
               )}
             </section>
             <div className="daily-flow">
-              {visibleDailyQuestions.map((question, index) => (
+              {visibleQuestionIndexes.map((index) => {
+                const question = dailyQuestions[index]
+                return (
                 <DailyQuestion
                   key={question.id}
                   question={question}
                   questionNumber={index + 1}
+                  compact={index < activeQuestionIndex}
                   isToday={isToday}
                   results={resultsByQuestion[question.id] ?? []}
                   selectedAnswer={answers[question.id]}
                   votePending={votePending === question.id}
                   transitionCountdown={transitioningIndex === index ? transitionCountdown : null}
-                  isCurrentQuestion={index === currentFlowIndex}
+                  isCurrentQuestion={index === activeQuestionIndex}
                   voteError={voteErrors[question.id]}
                   onVote={onVote}
                   onShare={() => onShare(question.id)}
                 />
-              ))}
+                )
+              })}
             </div>
             {dayTeaser && (
               <section className="tomorrow-teaser">
@@ -723,10 +803,12 @@ function ExploreScreen({
   onRetry,
   availableDays,
   onSelectDay,
+  setTab,
 }: {
   questions: PublicQuestion[]
   availableDays: string[]
   onSelectDay: (date: string) => void
+  setTab: (tab: Tab) => void
   resultsByQuestion: ResultsByQuestion
   saved: string[]
   answers: AnswersByQuestion
@@ -754,7 +836,7 @@ function ExploreScreen({
   )
   return (
     <>
-      <Header title="Istraži" />
+      <Header title="Istraži" activeTab="explore" onTabChange={setTab} />
       <main className="screen-content">
         <div className="explore-intro">
           <span>GLAS NARODA</span>
@@ -983,19 +1065,21 @@ function SavedScreen({
   saved,
   onToggleSave,
   onExplore,
+  setTab,
 }: {
   questions: PublicQuestion[]
   resultsByQuestion: ResultsByQuestion
   saved: string[]
   onToggleSave: (id: string) => void
   onExplore: () => void
+  setTab: (tab: Tab) => void
 }) {
   const savedQuestions = questions.filter((question) =>
     saved.includes(question.id),
   )
   return (
     <>
-      <Header title="Sačuvano" />
+      <Header title="Sačuvano" activeTab="saved" onTabChange={setTab} />
       <main className="screen-content">
         <div className="saved-hero">
           <div className="saved-icon">
@@ -1051,6 +1135,7 @@ function ProfileScreen({
   savedCount,
   accountUserId,
   onContinue,
+  setTab,
 }: {
   questions: PublicQuestion[]
   selectedDay: string
@@ -1060,6 +1145,7 @@ function ProfileScreen({
   savedCount: number
   accountUserId: string | null
   onContinue: () => void
+  setTab: (tab: Tab) => void
 }) {
   const [panel, setPanel] = useState<"history" | "settings" | null>(null)
   const [deviceLink, setDeviceLink] = useState("")
@@ -1139,11 +1225,13 @@ function ProfileScreen({
         title="Profil"
         settings
         onAction={() => setPanel(panel === "settings" ? null : "settings")}
+        activeTab="profile"
+        onTabChange={setTab}
       />
       <main className="screen-content profile-content">
         <section className="profile-hero profile-hero--guest">
           <div className="avatar">
-            <Icon name="user" size={24} />
+            <img src={`${import.meta.env.BASE_URL}favicon.png`} alt="" />
           </div>
           <h2>{nickname}</h2>
           <p>{accountUserId ? "Profil povezan sa nalogom" : "Anonimno glasanje · ovaj uređaj"}</p>
@@ -1766,6 +1854,7 @@ export default function App() {
               setLoading(true)
               setReload((current) => current + 1)
             }}
+            setTab={changeTab}
           />
         )}
         {tab === "saved" && (
@@ -1775,6 +1864,7 @@ export default function App() {
             saved={saved}
             onToggleSave={toggleSaved}
             onExplore={() => changeTab("explore")}
+            setTab={changeTab}
           />
         )}
         {tab === "profile" && (
@@ -1787,6 +1877,7 @@ export default function App() {
             savedCount={saved.length}
             accountUserId={accountUserId}
             onContinue={() => changeTab("home")}
+            setTab={changeTab}
           />
         )}
         <BottomNav tab={tab} setTab={changeTab} />
@@ -1801,3 +1892,4 @@ export default function App() {
     </div>
   )
 }
+
