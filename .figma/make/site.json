@@ -1,10 +1,14 @@
 {
-  "description": "A Serbian-language social polling app where users vote on daily and trending questions, explore community results, and share opinions with others.",
   "robots": {
     "index": false
   },
   "accessibility": {
     "addBypassLinks": false,
     "ignoreReducedMotion": false
+  },
+  "title": "Šta kaže Srbija?",
+  "description": "Glasaj na dnevnim pitanjima, uporedi odgovore i otkrij šta misli Srbija.",
+  "icons": {
+    "icon": "./favicon.png"
   }
 }

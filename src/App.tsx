@@ -19,7 +19,9 @@ import {
   getStoredVoteChoices,
   storeVoteChoice,
 } from "./lib/anonymousVoter"
+import { getGuestNickname, getParticipationRank } from "./lib/guestProfile"
 import { ScriptToggle } from "./lib/serbianScript"
+import { getSupabaseClient } from "./lib/supabase"
 
 type Tab = "home" | "explore" | "saved" | "profile"
 type IconName = "home" | "compass" | "bookmark" | "user" | "bell" | "check" | "share" | "users" | "clock" | "arrow" | "close" | "copy" | "instagram" | "message" | "trend" | "settings" | "chevron" | "spark" | "search"
@@ -308,6 +310,8 @@ function DailyQuestion({
   selectedAnswer,
   votePending,
   voteError,
+  transitionCountdown,
+  isCurrentQuestion,
   onVote,
   onShare,
 }: {
@@ -318,6 +322,8 @@ function DailyQuestion({
   selectedAnswer?: string
   votePending: boolean
   voteError?: string
+  transitionCountdown: number | null
+  isCurrentQuestion: boolean
   onVote: (questionId: string, optionId: string) => void
   onShare: () => void
 }) {
@@ -329,7 +335,7 @@ function DailyQuestion({
   }).format(new Date())
 
   return (
-    <section className={`daily-card ${voted ? "is-voted" : ""}`}>
+    <section className={`daily-card ${voted ? "is-voted" : ""} ${isCurrentQuestion ? "is-flow-current" : ""}`}>
       <div className="card-ornament ornament-left" />
       <div className="card-ornament ornament-right" />
       <span className="daily-index" aria-hidden="true">
@@ -421,6 +427,12 @@ function DailyQuestion({
               glasova
             </span>
           </div>
+          {transitionCountdown !== null && (
+            <div className="question-countdown" role="status">
+              <span>Sledeće pitanje za <strong>{transitionCountdown}s</strong></span>
+              <i><b /></i>
+            </div>
+          )}
           <button className="share-result-button" onClick={onShare}>
             <span>
               <Icon name="share" size={18} />
@@ -541,6 +553,8 @@ function HomeScreen({
   resultsByQuestion,
   answers,
   votePending,
+  transitioningQuestionId,
+  transitionCountdown,
   voteErrors,
   loading,
   loadError,
@@ -556,6 +570,8 @@ function HomeScreen({
   resultsByQuestion: ResultsByQuestion
   answers: AnswersByQuestion
   votePending: string | null
+  transitioningQuestionId: string | null
+  transitionCountdown: number | null
   voteErrors: Record<string, string>
   loading: boolean
   loadError: string | null
@@ -568,12 +584,16 @@ function HomeScreen({
   const pendingIndex = votePending
     ? dailyQuestions.findIndex((question) => question.id === votePending)
     : -1
-  const lastVisibleIndex =
-    pendingIndex >= 0
+  const transitioningIndex = transitioningQuestionId
+    ? dailyQuestions.findIndex((question) => question.id === transitioningQuestionId)
+    : -1
+  const currentFlowIndex = transitioningIndex >= 0
+    ? transitioningIndex
+    : pendingIndex >= 0
       ? pendingIndex
-      : firstUnansweredIndex >= 0
-        ? firstUnansweredIndex
-        : dailyQuestions.length - 1
+      : firstUnansweredIndex
+  const lastVisibleIndex =
+    currentFlowIndex >= 0 ? currentFlowIndex : dailyQuestions.length - 1
   const visibleDailyQuestions = dailyQuestions.slice(0, lastVisibleIndex + 1)
   const answeredToday = dailyQuestions.filter((question) => answers[question.id]).length
   const categories = Array.from(
@@ -637,6 +657,8 @@ function HomeScreen({
                   results={resultsByQuestion[question.id] ?? []}
                   selectedAnswer={answers[question.id]}
                   votePending={votePending === question.id}
+                  transitionCountdown={transitioningIndex === index ? transitionCountdown : null}
+                  isCurrentQuestion={index === currentFlowIndex}
                   voteError={voteErrors[question.id]}
                   onVote={onVote}
                   onShare={() => onShare(question.id)}
@@ -1027,6 +1049,7 @@ function ProfileScreen({
   resultsByQuestion,
   answers,
   savedCount,
+  accountUserId,
   onContinue,
 }: {
   questions: PublicQuestion[]
@@ -1035,9 +1058,13 @@ function ProfileScreen({
   resultsByQuestion: ResultsByQuestion
   answers: AnswersByQuestion
   savedCount: number
+  accountUserId: string | null
   onContinue: () => void
 }) {
   const [panel, setPanel] = useState<"history" | "settings" | null>(null)
+  const [deviceLink, setDeviceLink] = useState("")
+  const [deviceLinkCopied, setDeviceLinkCopied] = useState(false)
+  const [deviceLinkNeedsManualCopy, setDeviceLinkNeedsManualCopy] = useState(false)
   const [anonymous, setAnonymous] = useState(
     () => window.localStorage.getItem("sta-kaze-srbija:anonymous") !== "false",
   )
@@ -1045,6 +1072,7 @@ function ProfileScreen({
     () =>
       window.localStorage.getItem("sta-kaze-srbija:notifications") !== "false",
   )
+  const totalSubmittedVotes = Object.keys(answers).length
   const voteHistory = questions
     .filter((question) => answers[question.id])
     .map((question) => ({
@@ -1069,10 +1097,27 @@ function ProfileScreen({
     return counts
   }, new Map<string, number>())
   const dailyTopCategory = [...dailyCategoryCounts.entries()].sort((left, right) => right[1] - left[1])[0]?.[0]
+  const [nickname] = useState(getGuestNickname)
+  const participationRank = getParticipationRank(totalSubmittedVotes)
   const completedDailyGroup =
     dailyQuestions.length === 5 && dailyAnswered === 5 && dailyMatches.ready === 5
       ? dailyVoterGroup(dailyMatches.matched)
       : null
+
+  const copyDeviceLink = async () => {
+    const appRoot = new URL(import.meta.env.BASE_URL, window.location.href)
+    const link = new URL("prijava", appRoot).toString()
+    setDeviceLink(link)
+    try {
+      await navigator.clipboard.writeText(link)
+      setDeviceLinkCopied(true)
+      setDeviceLinkNeedsManualCopy(false)
+      window.setTimeout(() => setDeviceLinkCopied(false), 2500)
+    } catch {
+      setDeviceLinkCopied(false)
+      setDeviceLinkNeedsManualCopy(true)
+    }
+  }
 
   useEffect(() => {
     window.localStorage.setItem(
@@ -1100,11 +1145,11 @@ function ProfileScreen({
           <div className="avatar">
             <Icon name="user" size={24} />
           </div>
-          <h2>Moj profil</h2>
-          <p>Anonimno glasanje · ovaj uređaj</p>
+          <h2>{nickname}</h2>
+          <p>{accountUserId ? "Profil povezan sa nalogom" : "Anonimno glasanje · ovaj uređaj"}</p>
           <div className="stats profile-stats--two">
             <div>
-              <strong>{voteHistory.length}</strong>
+              <strong>{totalSubmittedVotes}</strong>
               <span>glasova</span>
             </div>
             <div>
@@ -1112,6 +1157,22 @@ function ProfileScreen({
               <span>sačuvano</span>
             </div>
           </div>
+        </section>
+        <section className="rank-card" aria-label="Nivo učešća">
+          <div className="rank-card-head">
+            <span>TVOJA TITULA</span>
+            <b>NIVO {participationRank.level}</b>
+          </div>
+          <h3>{participationRank.title}</h3>
+          <div className="rank-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={participationRank.progress}>
+            <i style={{ width: `${participationRank.progress}%` }} />
+          </div>
+          {participationRank.nextTitle ? (
+            <p>Još {participationRank.votesToNext} {participationRank.votesToNext === 1 ? "glas" : "glasova"} do titule „{participationRank.nextTitle}”.</p>
+          ) : (
+            <p>Dostigao/la si najvišu titulu. Čaršija te već sluša.</p>
+          )}
+          <small>Titula raste uz svaki poslati odgovor, bez tačnih i pogrešnih izbora.</small>
         </section>
         {dailyQuestions.length > 0 && (
           <section className={`daily-profile-card ${completedDailyGroup ? "is-complete" : ""}`}>
@@ -1163,12 +1224,30 @@ function ProfileScreen({
             <Icon name="user" size={20} />
           </div>
           <p>
-            Prijava je putem sigurnog email linka, bez lozinke. U ovoj verziji
-            glasovi i sačuvana pitanja ostaju sačuvani samo u ovom pregledaču.
+            {accountUserId
+              ? "Nadimak, titula i istorija glasanja vezani su za tvoj nalog i dostupni posle prijave na drugom uređaju."
+              : "Nadimak, titula i lična istorija čuvaju se na ovom uređaju. Kada napraviš nalog ili se prijaviš, anonimni glasovi se povezuju s njim."}
           </p>
           <a className="profile-auth-link" href={import.meta.env.BASE_URL + "prijava"}>
-            Prijavi se emailom <Icon name="arrow" size={17} />
+            {accountUserId ? "Podešavanja naloga" : "Prijava ili registracija"} <Icon name="arrow" size={17} />
           </a>
+          {accountUserId && (
+            <>
+              <button className="profile-auth-link profile-auth-link--secondary" type="button" onClick={() => void copyDeviceLink()}>
+                {deviceLinkCopied ? "Link je kopiran" : "Pređi na drugi uređaj"} <Icon name="copy" size={17} />
+              </button>
+              <p className="device-link-note">Na drugom uređaju otvori kopirani link i prijavi se istim nalogom.</p>
+              {deviceLink && deviceLinkNeedsManualCopy && (
+                <input
+                  className="device-link-input"
+                  aria-label="Link za prijavu na drugom uređaju"
+                  readOnly
+                  value={deviceLink}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+              )}
+            </>
+          )}
         </section>
         <section className="profile-section">
           <div className="section-heading compact">
@@ -1432,7 +1511,11 @@ export default function App() {
   const [reload, setReload] = useState(0)
   const hasLoadedRef = useRef(false)
   const [votePending, setVotePending] = useState<string | null>(null)
+  const [transitioningQuestionId, setTransitioningQuestionId] = useState<string | null>(null)
+  const [transitionCountdown, setTransitionCountdown] = useState<number | null>(null)
+  const transitionIntervalRef = useRef<number | null>(null)
   const [voteErrors, setVoteErrors] = useState<Record<string, string>>({})
+  const [accountUserId, setAccountUserId] = useState<string | null>(null)
   const dailyQuestions = useMemo(
     () =>
       questions
@@ -1444,12 +1527,36 @@ export default function App() {
   const dailyCompleted =
     dailyQuestions.length === 5 && dailyQuestions.every((question) => answers[question.id] !== undefined)
 
+  useEffect(() => () => {
+    if (transitionIntervalRef.current !== null) window.clearInterval(transitionIntervalRef.current)
+  }, [])
+
   useEffect(() => {
-    if (dailyCompleted && votePending === null && completionIntent === selectedDay) {
+    let active = true
+    try {
+      const client = getSupabaseClient()
+      const { data: { subscription } } = client.auth.onAuthStateChange((_event, session) => {
+        if (active) setAccountUserId(session?.user.id ?? null)
+      })
+      void client.auth.getSession().then(({ data }) => {
+        if (active) setAccountUserId(data.session?.user.id ?? null)
+      })
+      return () => {
+        active = false
+        subscription.unsubscribe()
+      }
+    } catch {
+      setAccountUserId(null)
+      return () => { active = false }
+    }
+  }, [])
+
+  useEffect(() => {
+    if (dailyCompleted && votePending === null && transitioningQuestionId === null && completionIntent === selectedDay) {
       setTab("profile")
       setCompletionIntent(null)
     }
-  }, [dailyCompleted, votePending, completionIntent, selectedDay])
+  }, [dailyCompleted, votePending, transitioningQuestionId, completionIntent, selectedDay])
 
   useEffect(() => {
     let cancelled = false
@@ -1531,6 +1638,10 @@ export default function App() {
   }
 
   const selectArchiveDay = (date: string) => {
+    if (transitionIntervalRef.current !== null) window.clearInterval(transitionIntervalRef.current)
+    transitionIntervalRef.current = null
+    setTransitioningQuestionId(null)
+    setTransitionCountdown(null)
     setSelectedDay(date)
     setCompletionIntent(null)
     changeTab("home")
@@ -1565,6 +1676,21 @@ export default function App() {
         }))
       }
       setAnswers((current) => ({ ...current, [questionId]: optionId }))
+      setTransitioningQuestionId(questionId)
+      setTransitionCountdown(3)
+      if (transitionIntervalRef.current !== null) window.clearInterval(transitionIntervalRef.current)
+      let secondsLeft = 3
+      transitionIntervalRef.current = window.setInterval(() => {
+        secondsLeft -= 1
+        if (secondsLeft <= 0) {
+          if (transitionIntervalRef.current !== null) window.clearInterval(transitionIntervalRef.current)
+          transitionIntervalRef.current = null
+          setTransitionCountdown(null)
+          setTransitioningQuestionId((current) => current === questionId ? null : current)
+        } else {
+          setTransitionCountdown(secondsLeft)
+        }
+      }, 1000)
       if (dailyQuestions.length === 5 && dailyQuestions[4].id === questionId) {
         setCompletionIntent(selectedDay)
       }
@@ -1602,6 +1728,8 @@ export default function App() {
             resultsByQuestion={resultsByQuestion}
             answers={answers}
             votePending={votePending}
+            transitioningQuestionId={transitioningQuestionId}
+            transitionCountdown={transitionCountdown}
             voteErrors={voteErrors}
             loading={loading}
             loadError={loadError}
@@ -1657,6 +1785,7 @@ export default function App() {
             resultsByQuestion={resultsByQuestion}
             answers={answers}
             savedCount={saved.length}
+            accountUserId={accountUserId}
             onContinue={() => changeTab("home")}
           />
         )}
